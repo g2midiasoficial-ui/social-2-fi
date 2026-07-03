@@ -1,0 +1,133 @@
+{
+  "name": "SocialFlow Automation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "socialflow-publish",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        360
+      ],
+      "id": "webhook-node",
+      "name": "SocialFlow Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "type": "string"
+          },
+          "conditions": [
+            {
+              "id": "check-platform-insta",
+              "leftValue": "={{ $json.body.platforms }}",
+              "operator": "contains",
+              "rightValue": "instagram"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        470,
+        360
+      ],
+      "id": "if-instagram",
+      "name": "Filtrar Instagram"
+    },
+    {
+      "parameters": {
+        "resource": "media",
+        "operation": "create",
+        "userId": "me",
+        "mediaType": "IMAGE",
+        "imageUrl": "={{ $json.body.mediaUrl }}",
+        "caption": "={{ $json.body.caption }}"
+      },
+      "type": "n8n-nodes-base.instagram",
+      "typeVersion": 1,
+      "position": [
+        720,
+        280
+      ],
+      "id": "instagram-publish",
+      "name": "Publicar Instagram"
+    },
+    {
+      "parameters": {
+        "chatId": "-1002083478",
+        "text": "📢 *Novo Post Publicado via SocialFlow!*\n\n📝 *Legenda:*\n{{ $json.body.caption }}\n\n🖼️ *Mídia:* {{ $json.body.mediaUrl }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        960,
+        360
+      ],
+      "id": "telegram-notify",
+      "name": "Notificar Telegram/WhatsApp"
+    }
+  ],
+  "connections": {
+    "SocialFlow Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Instagram": {
+      "main": [
+        [
+          {
+            "node": "Publicar Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notificar Telegram/WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publicar Instagram": {
+      "main": [
+        [
+          {
+            "node": "Notificar Telegram/WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "socialflow-n8n-template",
+  "meta": {
+    "templateId": "socialflow"
+  }
+}

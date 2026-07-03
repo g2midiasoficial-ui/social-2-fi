@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "Post": {
+      "title": "Post",
+      "description": "A scheduled or draft social media post",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "caption": { "type": "string" },
+        "platforms": { "type": "array" },
+        "destinations": { "type": "array" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["id", "caption", "platforms", "date", "time", "mediaUrl", "mediaType", "status"]
+    },
+    "Channel": {
+      "title": "Channel",
+      "description": "A connected social media channel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "handle": { "type": "string" },
+        "avatar": { "type": "string" },
+        "connected": { "type": "boolean" },
+        "accessToken": { "type": "string" }
+      },
+      "required": ["id", "name", "type", "handle", "connected"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A registered user in the application",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "displayName": { "type": "string" },
+        "password": { "type": "string" },
+        "email": { "type": "string" },
+        "avatar": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["username", "displayName", "password", "email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "posts": {
+      "schema": "Post",
+      "description": "Collection of social media posts"
+    },
+    "channels": {
+      "schema": "Channel",
+      "description": "Collection of connected channels"
+    },
+    "users": {
+      "schema": "User",
+      "description": "Collection of registered users"
+    }
+  }
+}

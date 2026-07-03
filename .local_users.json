@@ -1,0 +1,18 @@
+{
+  "alberth.borges": {
+    "username": "alberth.borges",
+    "displayName": "alberth.borges",
+    "password": "Beto54321@",
+    "email": "g2midiasoficial@gmail.com",
+    "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
+    "createdAt": "2026-06-29T22:50:57.139Z"
+  },
+  "testuser": {
+    "username": "testuser",
+    "displayName": "testuser",
+    "password": "password123",
+    "email": "test@example.com",
+    "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
+    "createdAt": "2026-06-30T00:35:26.390Z"
+  }
+}

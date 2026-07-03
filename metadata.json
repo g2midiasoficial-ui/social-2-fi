@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Social Media Planner \u0026 Analytics",
+  "description": "A complete social media management platform featuring an interactive visual planner calendar, multi-network post creator with realistic phone previews for Instagram and TikTok, AI caption assistant, and growth analytics dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
