@@ -22,7 +22,8 @@ import {
   HelpCircle,
   FolderHeart,
   Cable,
-  Database
+  Database,
+  Globe
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -36,6 +37,7 @@ interface NavigationProps {
   currentProfile: { username: string; avatar: string; email?: string };
   onOpenN8NModal?: () => void;
   onLogout?: () => void;
+  onGoToLanding?: () => void;
 }
 
 export default function Navigation({
@@ -47,7 +49,8 @@ export default function Navigation({
   setActiveSubTabAnalytics,
   currentProfile,
   onOpenN8NModal,
-  onLogout
+  onLogout,
+  onGoToLanding
 }: NavigationProps) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [dbConnected, setDbConnected] = useState<'connected' | 'checking' | 'failed'>('checking');
@@ -186,6 +189,18 @@ export default function Navigation({
                   <HelpCircle className="w-4 h-4 text-gray-400" />
                   <span>Suporte & Ajuda</span>
                 </button>
+                {onGoToLanding && (
+                  <button 
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      onGoToLanding();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-left hover:bg-[#341f3b] text-pink-400 hover:text-pink-300 transition-colors"
+                  >
+                    <Globe className="w-4 h-4" />
+                    <span>Ir para Landing Page</span>
+                  </button>
+                )}
                 <div className="border-t border-[#3e2746] my-1"></div>
                 <button 
                   onClick={() => {

@@ -8,6 +8,7 @@ import PostCreatorModal from "./components/PostCreatorModal";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import ConnectChannelModal from "./components/ConnectChannelModal";
 import N8NWorkflowModal from "./components/N8NWorkflowModal";
+import SalesPage from "./components/SalesPage";
 import LoginScreen from "./components/LoginScreen";
 import { 
   Send, 
@@ -53,7 +54,13 @@ export default function App() {
   // Feedback notifications
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
 
-  // Active profile info with dynamic user login state
+  // Active profile info with default auto-logged user
+  const defaultUser = {
+    username: "g2midias",
+    email: "g2midiasoficial@gmail.com",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"
+  };
+
   const [currentUser, setCurrentUser] = useState<{ username: string; email: string; avatar: string } | null>(() => {
     const savedUser = localStorage.getItem("socialflow_user");
     if (savedUser) {
@@ -64,10 +71,16 @@ export default function App() {
     return null;
   });
 
+  const [viewMode, setViewMode] = useState<'landing' | 'login' | 'platform'>(() => {
+    const savedUser = localStorage.getItem("socialflow_user");
+    return savedUser ? 'platform' : 'landing';
+  });
+
   const handleLogout = () => {
     localStorage.removeItem("socialflow_user");
     setCurrentUser(null);
-    showNotification("Você foi desconectado.", "info");
+    setViewMode('landing');
+    showNotification("Você saiu da plataforma. Até logo!", "info");
   };
 
   // Load initial posts and channels from Firebase Firestore (via backend API), falling back to localStorage or initial data
@@ -269,12 +282,12 @@ export default function App() {
     setTimeout(() => setNotification(null), 4000);
   };
 
-  if (!currentUser) {
+  if (viewMode === 'landing') {
     return (
       <>
         {/* Visual Floating State Toast notifications */}
         {notification && (
-          <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-right-4 duration-200">
+          <div className="fixed top-24 right-6 z-50 animate-in slide-in-from-right-4 duration-200">
             <div className={`px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-sm font-semibold border ${
               notification.type === 'success' 
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
@@ -285,11 +298,58 @@ export default function App() {
             </div>
           </div>
         )}
-        <LoginScreen onLoginSuccess={(user) => {
-          setCurrentUser(user);
-          localStorage.setItem("socialflow_user", JSON.stringify(user));
-          showNotification(`Bem-vindo de volta, ${user.username}!`, "success");
-        }} />
+        <SalesPage 
+          isLoggedIn={!!currentUser}
+          onEnterPlatform={(guest) => {
+            if (guest) {
+              setCurrentUser(defaultUser);
+              localStorage.setItem("socialflow_user", JSON.stringify(defaultUser));
+              setViewMode('platform');
+              showNotification(`Entrou como Convidado! Bem-vindo, ${defaultUser.username}!`, "success");
+            } else {
+              if (currentUser) {
+                setViewMode('platform');
+              } else {
+                setViewMode('login');
+              }
+            }
+          }}
+        />
+      </>
+    );
+  }
+
+  if (viewMode === 'login') {
+    return (
+      <>
+        {/* Visual Floating State Toast notifications */}
+        {notification && (
+          <div className="fixed top-24 right-6 z-50 animate-in slide-in-from-right-4 duration-200">
+            <div className={`px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-sm font-semibold border ${
+              notification.type === 'success' 
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                : 'bg-indigo-50 border-indigo-200 text-indigo-800'
+            }`}>
+              <span className="text-base">{notification.type === 'success' ? '✨' : 'ℹ️'}</span>
+              <span>{notification.text}</span>
+            </div>
+          </div>
+        )}
+        <LoginScreen 
+          onLoginSuccess={(user) => {
+            setCurrentUser(user);
+            localStorage.setItem("socialflow_user", JSON.stringify(user));
+            setViewMode('platform');
+            showNotification(`Bem-vindo de volta, ${user.username}!`, "success");
+          }} 
+          onBackToLanding={() => setViewMode('landing')}
+          onGuestLogin={() => {
+            setCurrentUser(defaultUser);
+            localStorage.setItem("socialflow_user", JSON.stringify(defaultUser));
+            setViewMode('platform');
+            showNotification(`Acesso Rápido Ativado! Bem-vindo, ${defaultUser.username}!`, "success");
+          }}
+        />
       </>
     );
   }
@@ -322,6 +382,7 @@ export default function App() {
         currentProfile={currentUser || { username: '', avatar: '', email: '' }}
         onOpenN8NModal={() => setIsN8NModalOpen(true)}
         onLogout={handleLogout}
+        onGoToLanding={() => setViewMode('landing')}
       />
 
       {/* App Tab views body orchestrator */}

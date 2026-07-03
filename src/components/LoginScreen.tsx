@@ -15,9 +15,11 @@ import {
 
 interface LoginScreenProps {
   onLoginSuccess: (user: { username: string; email: string; avatar: string }) => void;
+  onBackToLanding: () => void;
+  onGuestLogin: () => void;
 }
 
-export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLogin }: LoginScreenProps) {
   const [isRegister, setIsRegister] = useState(false);
   
   // Form fields
@@ -281,7 +283,7 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         </form>
 
         {/* Toggle Form Type */}
-        <div className="mt-5 text-center">
+        <div className="mt-5 text-center flex flex-col gap-3">
           <button
             type="button"
             onClick={() => {
@@ -289,11 +291,30 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               setErrorMsg(null);
               setSuccessMsg(null);
             }}
-            className="text-xs text-gray-400 hover:text-pink-400 transition-colors font-semibold"
+            className="text-xs text-gray-300 hover:text-pink-400 transition-colors font-semibold cursor-pointer"
           >
             {isRegister 
               ? "Já possui uma conta? Faça login aqui" 
               : "Não tem uma conta? Crie uma agora gratuitamente"}
+          </button>
+
+          <div className="h-[1px] bg-gradient-to-r from-transparent via-[#3e2746] to-transparent my-1"></div>
+
+          <button
+            type="button"
+            onClick={onGuestLogin}
+            className="text-xs text-pink-400 hover:text-pink-300 font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer mx-auto py-1 px-3 bg-pink-500/10 hover:bg-pink-500/15 rounded-full border border-pink-500/20"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Entrar como Convidado (Acesso Rápido)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onBackToLanding}
+            className="text-xs text-gray-400 hover:text-white transition-colors mt-2 cursor-pointer font-medium"
+          >
+            ← Voltar para a Página Inicial
           </button>
         </div>
 
