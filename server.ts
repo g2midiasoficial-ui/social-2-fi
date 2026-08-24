@@ -1201,14 +1201,21 @@ app.post("/api/media/extract-meta", async (req, res) => {
   }
 });
 
+// Health check route
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // Media Library Templates Endpoints (Firestore + Local fallback)
 app.get("/api/media-templates", async (req, res) => {
   try {
-    const db = await getFirestoreDb();
+    const db = getFirestoreDb();
     if (db) {
-      const snap = await db.collection("media_templates").orderBy("createdAt", "desc").get();
+      const templatesCol = collection(db, "media_templates");
+      const snap = await withTimeout(getDocs(templatesCol), 2500);
       if (!snap.empty) {
-        const templates = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const templates = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        writeLocalFile(".local_media_templates.json", templates);
         return res.json({ success: true, templates });
       }
     }
@@ -1226,18 +1233,6 @@ app.post("/api/media-templates", async (req, res) => {
     return res.status(400).json({ error: "Dados do modelo inválidos." });
   }
 
-  try {
-    const db = await getFirestoreDb();
-    if (db) {
-      await db.collection("media_templates").doc(template.id).set({
-        ...template,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    }
-  } catch (err: any) {
-    console.warn("Firestore template save fallback:", err.message);
-  }
-
   const localTemplates = readLocalFile(".local_media_templates.json", []);
   const existingIdx = localTemplates.findIndex((t: any) => t.id === template.id);
   if (existingIdx >= 0) {
@@ -1247,23 +1242,37 @@ app.post("/api/media-templates", async (req, res) => {
   }
   writeLocalFile(".local_media_templates.json", localTemplates);
 
+  try {
+    const db = getFirestoreDb();
+    if (db) {
+      const templateRef = doc(db, "media_templates", template.id);
+      await withTimeout(setDoc(templateRef, {
+        ...template,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }), 2500);
+    }
+  } catch (err: any) {
+    console.warn("Firestore template save fallback:", err.message);
+  }
+
   return res.json({ success: true, template });
 });
 
 app.delete("/api/media-templates/:id", async (req, res) => {
   const { id } = req.params;
+  const localTemplates = readLocalFile(".local_media_templates.json", []);
+  const updated = localTemplates.filter((t: any) => t.id !== id);
+  writeLocalFile(".local_media_templates.json", updated);
+
   try {
-    const db = await getFirestoreDb();
+    const db = getFirestoreDb();
     if (db) {
-      await db.collection("media_templates").doc(id).delete();
+      const templateRef = doc(db, "media_templates", id);
+      await withTimeout(deleteDoc(templateRef), 2500);
     }
   } catch (err: any) {
     console.warn("Firestore template delete fallback:", err.message);
   }
-
-  const localTemplates = readLocalFile(".local_media_templates.json", []);
-  const updated = localTemplates.filter((t: any) => t.id !== id);
-  writeLocalFile(".local_media_templates.json", updated);
 
   return res.json({ success: true, id });
 });
