@@ -1,10 +1,26 @@
 {
+  "g2midias": {
+    "username": "g2midias",
+    "displayName": "g2midias",
+    "password": "Beto54321@",
+    "email": "g2midiasoficial@gmail.com",
+    "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop",
+    "createdAt": "2026-06-29T22:50:57.139Z"
+  },
   "alberth.borges": {
     "username": "alberth.borges",
     "displayName": "alberth.borges",
     "password": "Beto54321@",
     "email": "g2midiasoficial@gmail.com",
     "avatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop",
+    "createdAt": "2026-06-29T22:50:57.139Z"
+  },
+  "admin": {
+    "username": "admin",
+    "displayName": "Administrador SocialFlow",
+    "password": "admin",
+    "email": "admin@socialflow.com",
+    "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
     "createdAt": "2026-06-29T22:50:57.139Z"
   },
   "testuser": {

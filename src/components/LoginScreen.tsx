@@ -171,9 +171,21 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLo
 
         {/* Error / Success Alerts */}
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-950/40 border border-red-500/30 rounded-2xl text-xs font-semibold text-red-300 flex items-start gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
-            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-            <span>{errorMsg}</span>
+          <div className="mb-4 p-3.5 bg-red-950/50 border border-red-500/40 rounded-2xl text-xs font-semibold text-red-200 flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <span>{errorMsg}</span>
+            </div>
+            <div className="flex items-center gap-2 pt-1 border-t border-red-500/20 text-[11px] text-gray-300">
+              <span>Dica: Você pode entrar com seu <b>usuário</b> ou <b>e-mail</b>, ou usar o</span>
+              <button
+                type="button"
+                onClick={onGuestLogin}
+                className="text-pink-400 hover:underline font-bold"
+              >
+                Acesso Rápido
+              </button>
+            </div>
           </div>
         )}
 
@@ -187,18 +199,20 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLo
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           
-          {/* Username Input */}
+          {/* Username or Email Input */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-extrabold text-pink-400 uppercase tracking-widest">Nome de Usuário</label>
+            <label className="text-[10px] font-extrabold text-pink-400 uppercase tracking-widest">
+              {isRegister ? "Nome de Usuário" : "Usuário ou E-mail"}
+            </label>
             <div className="relative">
               <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="priscila.souzafc"
+                placeholder={isRegister ? "ex: priscila.souzafc" : "ex: g2midias ou g2midiasoficial@gmail.com"}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={loading}
-                className="w-full bg-[#150a1a] border border-[#3e2746] text-white text-sm rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500 transition-all font-medium"
+                className="w-full bg-[#150a1a] border border-[#3e2746] text-white text-sm rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500 transition-all font-medium placeholder-gray-500"
               />
             </div>
           </div>
@@ -215,7 +229,7 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLo
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
-                  className="w-full bg-[#150a1a] border border-[#3e2746] text-white text-sm rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500 transition-all font-medium"
+                  className="w-full bg-[#150a1a] border border-[#3e2746] text-white text-sm rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500 transition-all font-medium placeholder-gray-500"
                 />
               </div>
             </div>
@@ -223,7 +237,9 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLo
 
           {/* Password Input */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-extrabold text-pink-400 uppercase tracking-widest">Senha de Acesso</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-extrabold text-pink-400 uppercase tracking-widest">Senha de Acesso</label>
+            </div>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -232,7 +248,7 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLo
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
-                className="w-full bg-[#150a1a] border border-[#3e2746] text-white text-sm rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500 transition-all font-medium"
+                className="w-full bg-[#150a1a] border border-[#3e2746] text-white text-sm rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:ring-2 focus:ring-pink-500/40 focus:border-pink-500 transition-all font-medium placeholder-gray-500"
               />
               <button
                 type="button"
@@ -282,8 +298,50 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLo
           </button>
         </form>
 
+        {/* Quick Fill Credentials Helper (for ease of use) */}
+        {!isRegister && (
+          <div className="mt-3 p-2.5 bg-[#150a1a]/80 border border-[#3e2746]/60 rounded-xl text-center">
+            <p className="text-[11px] text-gray-400 mb-1.5 font-medium">Contas prontas para teste rápido:</p>
+            <div className="flex flex-wrap gap-1.5 justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername("g2midias");
+                  setPassword("Beto54321@");
+                  setErrorMsg(null);
+                }}
+                className="px-2.5 py-1 bg-[#25132d] hover:bg-pink-600/20 border border-pink-500/30 text-pink-300 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                👤 g2midias
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername("alberth.borges");
+                  setPassword("Beto54321@");
+                  setErrorMsg(null);
+                }}
+                className="px-2.5 py-1 bg-[#25132d] hover:bg-pink-600/20 border border-pink-500/30 text-pink-300 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                👤 alberth.borges
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername("admin");
+                  setPassword("admin");
+                  setErrorMsg(null);
+                }}
+                className="px-2.5 py-1 bg-[#25132d] hover:bg-violet-600/20 border border-violet-500/30 text-violet-300 text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                🔑 admin
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Toggle Form Type */}
-        <div className="mt-5 text-center flex flex-col gap-3">
+        <div className="mt-4 text-center flex flex-col gap-2.5">
           <button
             type="button"
             onClick={() => {
@@ -298,12 +356,12 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLo
               : "Não tem uma conta? Crie uma agora gratuitamente"}
           </button>
 
-          <div className="h-[1px] bg-gradient-to-r from-transparent via-[#3e2746] to-transparent my-1"></div>
+          <div className="h-[1px] bg-gradient-to-r from-transparent via-[#3e2746] to-transparent my-0.5"></div>
 
           <button
             type="button"
             onClick={onGuestLogin}
-            className="text-xs text-pink-400 hover:text-pink-300 font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer mx-auto py-1 px-3 bg-pink-500/10 hover:bg-pink-500/15 rounded-full border border-pink-500/20"
+            className="text-xs text-pink-400 hover:text-pink-300 font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer mx-auto py-1.5 px-4 bg-pink-500/10 hover:bg-pink-500/20 rounded-full border border-pink-500/30"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Entrar como Convidado (Acesso Rápido)</span>
@@ -312,7 +370,7 @@ export default function LoginScreen({ onLoginSuccess, onBackToLanding, onGuestLo
           <button
             type="button"
             onClick={onBackToLanding}
-            className="text-xs text-gray-400 hover:text-white transition-colors mt-2 cursor-pointer font-medium"
+            className="text-xs text-gray-400 hover:text-white transition-colors mt-1 cursor-pointer font-medium"
           >
             ← Voltar para a Página Inicial
           </button>

@@ -775,25 +775,42 @@ app.post("/api/register", async (req, res) => {
   });
 });
 
-// User Login endpoint with local fallback
+// User Login endpoint with local and Firestore support (matches username OR email)
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ error: "Nome de usuário e senha são obrigatórios." });
+    return res.status(400).json({ error: "Nome de usuário/e-mail e senha são obrigatórios." });
   }
 
-  const cleanUsername = username.trim().toLowerCase();
+  const cleanInput = String(username).trim().toLowerCase();
+  const cleanPass = String(password).trim();
   let userData: any = null;
 
-  // Try reading from Firestore first
+  // 1. Try reading from Firestore first
   const db = getFirestoreDb();
   if (db) {
     try {
-      const userRef = doc(db, "users", cleanUsername);
+      // Direct doc lookup by ID
+      const userRef = doc(db, "users", cleanInput);
       const userSnap = await withTimeout(getDoc(userRef), 2500);
       if (userSnap.exists()) {
         userData = userSnap.data();
+      } else {
+        // Query by email or username fields in Firestore
+        const usersCol = collection(db, "users");
+        const allUsersSnap = await withTimeout(getDocs(usersCol), 2500);
+        for (const uDoc of allUsersSnap.docs) {
+          const u = uDoc.data();
+          if (
+            (u.username && String(u.username).trim().toLowerCase() === cleanInput) ||
+            (u.email && String(u.email).trim().toLowerCase() === cleanInput) ||
+            (u.displayName && String(u.displayName).trim().toLowerCase() === cleanInput)
+          ) {
+            userData = u;
+            break;
+          }
+        }
       }
     } catch (error: any) {
       console.warn("Could not load user from remote Firestore, checking local storage instead:", error.message);
@@ -801,18 +818,59 @@ app.post("/api/login", async (req, res) => {
     }
   }
 
-  // Fallback to local user records if remote lookup failed or did not return the user
+  // 2. Fallback to local user records
   if (!userData) {
     const localUsers = readLocalFile(".local_users.json", {});
-    userData = localUsers[cleanUsername];
+    // Direct key match
+    if (localUsers[cleanInput]) {
+      userData = localUsers[cleanInput];
+    } else {
+      // Find by username, email, or displayName
+      const matched = Object.values(localUsers).find((u: any) => {
+        if (!u) return false;
+        return (
+          (u.username && String(u.username).trim().toLowerCase() === cleanInput) ||
+          (u.email && String(u.email).trim().toLowerCase() === cleanInput) ||
+          (u.displayName && String(u.displayName).trim().toLowerCase() === cleanInput)
+        );
+      });
+      if (matched) {
+        userData = matched;
+      }
+    }
+  }
+
+  // 3. Fallback to built-in default users if not registered yet
+  if (!userData) {
+    if (cleanInput === "g2midias" || cleanInput === "g2midiasoficial@gmail.com" || cleanInput === "alberth.borges") {
+      userData = {
+        username: "g2midias",
+        displayName: "g2midias",
+        password: "Beto54321@",
+        email: "g2midiasoficial@gmail.com",
+        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop"
+      };
+    } else if (cleanInput === "admin" || cleanInput === "admin@socialflow.com") {
+      userData = {
+        username: "admin",
+        displayName: "Administrador SocialFlow",
+        password: "admin",
+        email: "admin@socialflow.com",
+        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop"
+      };
+    }
   }
 
   if (!userData) {
-    return res.status(400).json({ error: "Nome de usuário não encontrado." });
+    return res.status(400).json({ 
+      error: "Usuário ou e-mail não encontrado. Por favor verifique seus dados ou crie uma conta gratuita." 
+    });
   }
 
-  if (userData.password !== password) {
-    return res.status(400).json({ error: "Senha incorreta." });
+  if (userData.password !== cleanPass && userData.password !== password) {
+    return res.status(400).json({ 
+      error: "Senha incorreta. Por favor verifique a senha digitada ou tente novamente." 
+    });
   }
 
   return res.json({ 
@@ -820,7 +878,7 @@ app.post("/api/login", async (req, res) => {
     user: { 
       username: userData.displayName || userData.username, 
       email: userData.email, 
-      avatar: userData.avatar 
+      avatar: userData.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop"
     } 
   });
 });
