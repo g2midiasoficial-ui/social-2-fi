@@ -830,6 +830,181 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "healthy", hasGeminiKey: !!process.env.GEMINI_API_KEY });
 });
 
+// Meta & Real Cover Extractor for Instagram, TikTok, YouTube, Vimeo and Videos
+app.post("/api/media/extract-meta", async (req, res) => {
+  const { url } = req.body;
+  if (!url || typeof url !== "string") {
+    return res.status(400).json({ error: "URL inválida ou ausente." });
+  }
+
+  const cleanUrl = url.trim();
+
+  try {
+    // 1. YouTube & YouTube Shorts
+    const ytMatch = cleanUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+    if (ytMatch && ytMatch[1]) {
+      const videoId = ytMatch[1];
+      return res.json({
+        success: true,
+        source: "youtube",
+        sourceLabel: "YouTube / Shorts",
+        thumbnailUrl: `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+        videoUrl: cleanUrl,
+        embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1`,
+        mediaType: "video"
+      });
+    }
+
+    // 2. TikTok via Official oEmbed
+    if (/tiktok\.com/i.test(cleanUrl)) {
+      try {
+        const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(cleanUrl)}`;
+        const resp = await fetch(oembedUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+          }
+        });
+        if (resp.ok) {
+          const data: any = await resp.json();
+          if (data && (data.thumbnail_url || data.html)) {
+            return res.json({
+              success: true,
+              source: "tiktok",
+              sourceLabel: "TikTok",
+              title: data.title || "",
+              author: data.author_name || "",
+              thumbnailUrl: data.thumbnail_url || "",
+              videoUrl: cleanUrl,
+              embedHtml: data.html || "",
+              mediaType: "video"
+            });
+          }
+        }
+      } catch (err: any) {
+        console.warn("TikTok oEmbed fetch warning:", err.message);
+      }
+
+      return res.json({
+        success: true,
+        source: "tiktok",
+        sourceLabel: "TikTok",
+        thumbnailUrl: "",
+        videoUrl: cleanUrl,
+        mediaType: "video"
+      });
+    }
+
+    // 3. Instagram Reels / Posts
+    const instaMatch = cleanUrl.match(/instagram\.com\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
+    if (instaMatch && instaMatch[1]) {
+      const shortcode = instaMatch[1];
+      const embedUrl = `https://www.instagram.com/reel/${shortcode}/embed`;
+      
+      // Try scraping OpenGraph og:image with bot UA
+      let scrapedThumb = "";
+      let scrapedTitle = "";
+      try {
+        const pageResp = await fetch(cleanUrl, {
+          headers: {
+            "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          }
+        });
+        if (pageResp.ok) {
+          const html = await pageResp.text();
+          const ogImgMatch = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']/i) ||
+                             html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:image["']/i);
+          if (ogImgMatch && ogImgMatch[1]) {
+            scrapedThumb = ogImgMatch[1].replace(/&amp;/g, '&');
+          }
+          const ogTitleMatch = html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i);
+          if (ogTitleMatch && ogTitleMatch[1]) {
+            scrapedTitle = ogTitleMatch[1];
+          }
+        }
+      } catch (e: any) {
+        console.warn("Instagram OpenGraph scrape attempt:", e.message);
+      }
+
+      return res.json({
+        success: true,
+        source: "instagram",
+        sourceLabel: "Instagram Reels",
+        shortcode,
+        thumbnailUrl: scrapedThumb || "",
+        videoUrl: cleanUrl,
+        embedUrl,
+        title: scrapedTitle || "",
+        mediaType: "video"
+      });
+    }
+
+    // 4. Vimeo
+    const vimeoMatch = cleanUrl.match(/vimeo\.com\/(\d+)/i);
+    if (vimeoMatch && vimeoMatch[1]) {
+      const vimeoId = vimeoMatch[1];
+      return res.json({
+        success: true,
+        source: "vimeo",
+        sourceLabel: "Vimeo",
+        thumbnailUrl: `https://vumbnail.com/${vimeoId}.jpg`,
+        videoUrl: cleanUrl,
+        embedUrl: `https://player.vimeo.com/video/${vimeoId}?autoplay=1`,
+        mediaType: "video"
+      });
+    }
+
+    // 5. Direct Video File (.mp4, .webm, .mov, etc.)
+    if (/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i.test(cleanUrl) || /mixkit\.co/i.test(cleanUrl) || cleanUrl.startsWith('blob:') || cleanUrl.startsWith('data:video')) {
+      return res.json({
+        success: true,
+        source: "direct_video",
+        sourceLabel: "Vídeo Direto MP4",
+        thumbnailUrl: "",
+        videoUrl: cleanUrl,
+        mediaType: "video"
+      });
+    }
+
+    // 6. Generic webpage - scrape OpenGraph
+    try {
+      const pageResp = await fetch(cleanUrl, {
+        headers: {
+          "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+        }
+      });
+      if (pageResp.ok) {
+        const html = await pageResp.text();
+        const ogImgMatch = html.match(/<meta\s+(?:property|name)=["'](?:og:image|twitter:image)["']\s+content=["']([^"']+)["']/i) ||
+                           html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
+        const ogTitleMatch = html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i);
+        return res.json({
+          success: true,
+          source: "webpage",
+          sourceLabel: "Página Web",
+          thumbnailUrl: ogImgMatch ? ogImgMatch[1].replace(/&amp;/g, '&') : "",
+          title: ogTitleMatch ? ogTitleMatch[1] : "",
+          videoUrl: cleanUrl,
+          mediaType: "video"
+        });
+      }
+    } catch (e: any) {
+      // Fallback
+    }
+
+    return res.json({
+      success: true,
+      source: "unknown",
+      sourceLabel: "Link Externo",
+      thumbnailUrl: "",
+      videoUrl: cleanUrl,
+      mediaType: "video"
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || "Erro ao extrair metadados do vídeo." });
+  }
+});
+
 // Start integration server
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
