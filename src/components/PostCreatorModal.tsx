@@ -28,7 +28,8 @@ import {
   Music,
   Info,
   ChevronUp,
-  AlertCircle
+  AlertCircle,
+  RefreshCw
 } from "lucide-react";
 
 interface PostCreatorModalProps {
@@ -79,6 +80,77 @@ export default function PostCreatorModal({
     }
     return null;
   });
+
+  const [linkInput, setLinkInput] = useState("");
+  const [isExtractingLink, setIsExtractingLink] = useState(false);
+
+  const handleExtractAndApplyLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const clean = linkInput.trim();
+    if (!clean) return;
+
+    setIsExtractingLink(true);
+    let extractedThumb = "";
+    let extractedTitle = "";
+
+    try {
+      const resp = await fetch("/api/media/extract-meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: clean })
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.thumbnailUrl) extractedThumb = data.thumbnailUrl;
+        if (data.title) extractedTitle = data.title;
+      }
+    } catch (_) {}
+
+    const isIg = /instagram\.com/i.test(clean);
+    const isTt = /tiktok\.com/i.test(clean);
+    const finalMedia = extractedThumb || clean;
+
+    setMediaUrl(finalMedia);
+    setMediaType('video');
+    setUploadedMedia({
+      url: finalMedia,
+      type: 'video',
+      name: isIg ? 'Instagram Reels' : isTt ? 'TikTok' : 'Link Adicionado'
+    });
+
+    if (extractedTitle && !caption) {
+      setCaption(extractedTitle);
+    }
+
+    // Direct synchronization into user's media library
+    try {
+      const existingRaw = localStorage.getItem("socialflow_media_library");
+      const existing = existingRaw ? JSON.parse(existingRaw) : [];
+      const newTpl = {
+        id: `tpl-${Date.now()}`,
+        title: extractedTitle || (isIg ? 'Instagram Reels Salvo' : isTt ? 'TikTok Salvo' : 'Vídeo & Capa Salvo'),
+        category: 'links_salvos',
+        categoryLabel: isIg ? 'Instagram Reels' : isTt ? 'TikTok Vídeo' : 'Link Adicionado',
+        caption: caption || extractedTitle || 'Capa e vídeo salvos via link na criação do post.',
+        mediaUrl: clean,
+        thumbnailUrl: finalMedia,
+        videoUrl: clean,
+        mediaType: 'video',
+        tags: ['link-salvo', 'link-adicionado', isIg ? 'instagram' : isTt ? 'tiktok' : 'youtube'],
+        engagementTip: 'Salvo automaticamente na Biblioteca de Publicações, Vídeos & Capas.'
+      };
+      const updatedLib = [newTpl, ...existing];
+      localStorage.setItem("socialflow_media_library", JSON.stringify(updatedLib));
+
+      fetch("/api/media-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTpl)
+      }).catch(() => {});
+    } catch (_) {}
+
+    setIsExtractingLink(false);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -451,11 +523,42 @@ export default function PostCreatorModal({
           </div>
 
           {/* Media selector */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Mídia do Post (Vídeo ou Imagem):</label>
-              <span className="text-[10px] text-pink-600 font-semibold bg-pink-50 px-2 py-0.5 rounded-md">Suporta MP4, WebM, PNG, JPG</span>
+              <span className="text-[10px] text-pink-600 font-semibold bg-pink-50 px-2 py-0.5 rounded-md">Suporta Links Reels/TikTok, Upload & Presets</span>
             </div>
+
+            {/* Quick URL Input for Reels / TikTok / YouTube links with real cover extraction */}
+            <form onSubmit={handleExtractAndApplyLink} className="flex items-center gap-2 bg-pink-50/70 p-2 rounded-2xl border border-pink-200/80 shadow-2xs">
+              <div className="relative flex-1">
+                <Link2 className="w-4 h-4 text-pink-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="url"
+                  placeholder="Colar link de Reels, TikTok ou YouTube para extrair capa..."
+                  value={linkInput}
+                  onChange={e => setLinkInput(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-pink-200 rounded-xl text-xs text-gray-800 focus:outline-pink-500 font-medium"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isExtractingLink || !linkInput.trim()}
+                className="px-3.5 py-2 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0 transition-all"
+              >
+                {isExtractingLink ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Extraindo...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Aplicar & Salvar Capa</span>
+                  </>
+                )}
+              </button>
+            </form>
             
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
               {/* Local File Upload Box */}

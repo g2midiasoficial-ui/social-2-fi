@@ -389,11 +389,16 @@ export default function MediaLibraryManager({
     return INITIAL_TEMPLATES;
   });
 
+  const [onlyUserLinks, setOnlyUserLinks] = useState<boolean>(() => {
+    return localStorage.getItem("socialflow_filter_only_user_links") === "true";
+  });
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [addModalTab, setAddModalTab] = useState<'link' | 'upload'>('link');
+  const [addModalTab, setAddModalTab] = useState<'link' | 'upload' | 'batch'>('link');
+  const [batchLinksInput, setBatchLinksInput] = useState("");
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
 
   // New Template Inputs
   const [newTitle, setNewTitle] = useState("");
@@ -549,8 +554,19 @@ export default function MediaLibraryManager({
     localStorage.setItem("socialflow_media_library", JSON.stringify(updated));
   };
 
+  const isUserAddedItem = (tpl: MediaTemplate) => {
+    return Boolean(
+      tpl.category === 'links_salvos' ||
+      tpl.category === 'minhas_publicacoes' ||
+      tpl.id.startsWith('post-tpl-') ||
+      tpl.tags?.some(t => ['link-salvo', 'link-adicionado', 'minha-publicacao', 'importado'].includes(t.toLowerCase())) ||
+      (tpl.id.startsWith('tpl-') && !INITIAL_TEMPLATES.some(it => it.id === tpl.id))
+    );
+  };
+
   const categories = [
-    { id: 'all', label: 'Todos os Modelos & Capas' },
+    { id: 'all', label: 'Todas as Capas' },
+    { id: 'links_salvos', label: '🔗 Capas de Links Adicionados' },
     { id: 'minhas_publicacoes', label: '📌 Minhas Publicações' },
     { id: 'reels', label: '🎬 Reels & Vídeos' },
     { id: 'carrossel', label: '📊 Carrosséis & Fotos' },
@@ -560,9 +576,18 @@ export default function MediaLibraryManager({
   ];
 
   const filteredTemplates = templates.filter(tpl => {
+    // If onlyUserLinks toggle is active, only show items the user added
+    if (onlyUserLinks && !isUserAddedItem(tpl)) {
+      return false;
+    }
+
     const matchesCategory = 
       selectedCategory === 'all' || 
-      (selectedCategory === 'minhas_publicacoes' ? (tpl.category === 'minhas_publicacoes' || tpl.id.startsWith('post-tpl-')) : tpl.category === selectedCategory);
+      (selectedCategory === 'links_salvos' 
+        ? (tpl.category === 'links_salvos' || tpl.tags?.some(t => t.includes('link-salvo') || t.includes('link-adicionado')) || /instagram\.com|tiktok\.com|youtube\.com|youtu\.be/i.test(tpl.mediaUrl || tpl.videoUrl || ''))
+        : selectedCategory === 'minhas_publicacoes' 
+          ? (tpl.category === 'minhas_publicacoes' || tpl.id.startsWith('post-tpl-')) 
+          : tpl.category === selectedCategory);
     
     const matchesSearch = 
       tpl.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -570,6 +595,34 @@ export default function MediaLibraryManager({
       tpl.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
+
+  const handleToggleOnlyUserLinks = () => {
+    const nextVal = !onlyUserLinks;
+    setOnlyUserLinks(nextVal);
+    localStorage.setItem("socialflow_filter_only_user_links", String(nextVal));
+    if (nextVal) {
+      showNotification("Modo ativado: Exibindo apenas capas dos links que você adicionou!", "info");
+    } else {
+      showNotification("Exibindo todas as capas (incluindo modelos de inspiração).", "info");
+    }
+  };
+
+  const handleClearDefaultTemplates = () => {
+    if (window.confirm("Deseja ocultar todos os modelos de exemplo e deixar apenas as capas dos seus links? (Você pode restaurá-los a qualquer momento)")) {
+      const userItems = templates.filter(isUserAddedItem);
+      saveTemplates(userItems);
+      showNotification("Modelos de exemplo removidos. Biblioteca limpa com apenas suas capas!", "success");
+    }
+  };
+
+  const handleRestoreDefaultTemplates = () => {
+    const map = new Map<string, MediaTemplate>();
+    INITIAL_TEMPLATES.forEach(t => map.set(t.id, t));
+    templates.forEach(t => map.set(t.id, t));
+    const merged = Array.from(map.values());
+    saveTemplates(merged);
+    showNotification("Modelos padrão restaurados com sucesso!", "success");
+  };
 
   const handleCopyCaption = (tpl: MediaTemplate) => {
     navigator.clipboard.writeText(tpl.caption);
@@ -626,7 +679,7 @@ export default function MediaLibraryManager({
         thumbnailUrl: resolvedThumb,
         videoUrl: post.mediaType === 'video' ? post.mediaUrl : '',
         mediaType: post.mediaType || 'video',
-        tags: ['minha-publicacao', ...(post.platforms || [])],
+        tags: ['minha-publicacao', 'link-salvo', ...(post.platforms || [])],
         engagementTip: `Publicação agendada para ${post.date} às ${post.time}.`,
         status: post.status,
         postDate: post.date,
@@ -648,64 +701,154 @@ export default function MediaLibraryManager({
     showNotification(`✓ ${postsToSync.length} capas de publicações sincronizadas com sucesso!`, "success");
   };
 
-  // Quick Save directly from top bar
+  // Quick Save directly from top bar (supports single or multi-link text)
   const handleQuickSaveLink = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanUrl = quickLink.trim();
-    if (!cleanUrl) return;
+    const rawInput = quickLink.trim();
+    if (!rawInput) return;
+
+    // Extract all URLs from input
+    const urlMatches = rawInput.match(/https?:\/\/[^\s,]+/gi) || [rawInput];
+    if (urlMatches.length === 0) return;
 
     setIsQuickSaving(true);
-    const parsed = parseMediaUrl(cleanUrl);
-    let finalThumb = parsed.thumbnailUrl || "";
-    let autoTitle = "";
+    const newItems: MediaTemplate[] = [];
 
-    try {
-      const resp = await fetch("/api/media/extract-meta", {
+    for (let i = 0; i < urlMatches.length; i++) {
+      const cleanUrl = urlMatches[i].trim();
+      if (!cleanUrl) continue;
+
+      const parsed = parseMediaUrl(cleanUrl);
+      let finalThumb = parsed.thumbnailUrl || "";
+      let autoTitle = "";
+
+      try {
+        const resp = await fetch("/api/media/extract-meta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: cleanUrl })
+        });
+        if (resp.ok) {
+          const meta = await resp.json();
+          if (meta.thumbnailUrl) finalThumb = meta.thumbnailUrl;
+          if (meta.title) autoTitle = meta.title;
+        }
+      } catch (_) {}
+
+      const isIg = /instagram\.com/i.test(cleanUrl);
+      const isTt = /tiktok\.com/i.test(cleanUrl);
+      const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
+
+      const titleText = autoTitle || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Capa & Vídeo Salvo") + ` #${templates.length + newItems.length + 1}`;
+      const resolvedThumbnail = finalThumb || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: titleText });
+
+      const newTpl: MediaTemplate = {
+        id: `tpl-${Date.now()}-${i}`,
+        title: titleText,
+        category: 'links_salvos' as any,
+        categoryLabel: isIg ? 'Instagram Reels' : isTt ? 'TikTok Vídeo' : isYt ? 'YouTube Shorts' : 'Link Adicionado',
+        caption: `Capa e vídeo salvos via link.\n\nConfira este formato para se inspirar e criar conteúdo com alto engajamento! 🚀\n\n#linksalvo #reels #viral`,
+        mediaUrl: cleanUrl,
+        thumbnailUrl: resolvedThumbnail,
+        videoUrl: cleanUrl,
+        mediaType: 'video',
+        tags: ['link-salvo', 'link-adicionado', 'viral', isIg ? 'instagram' : isTt ? 'tiktok' : 'youtube'],
+        engagementTip: "Capa e mídia extraídas com sucesso e salvas na sua biblioteca permanente."
+      };
+
+      newItems.push(newTpl);
+
+      // Async save to server
+      fetch("/api/media-templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: cleanUrl })
-      });
-      if (resp.ok) {
-        const meta = await resp.json();
-        if (meta.thumbnailUrl) finalThumb = meta.thumbnailUrl;
-        if (meta.title) autoTitle = meta.title;
-      }
-    } catch (_) {}
+        body: JSON.stringify(newTpl)
+      }).catch(() => {});
+    }
 
-    const isIg = /instagram\.com/i.test(cleanUrl);
-    const isTt = /tiktok\.com/i.test(cleanUrl);
-    const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
-
-    const titleText = autoTitle || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Vídeo & Capa Salvo") + ` #${templates.length + 1}`;
-    const resolvedThumbnail = finalThumb || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: titleText });
-
-    const newTpl: MediaTemplate = {
-      id: `tpl-${Date.now()}`,
-      title: titleText,
-      category: 'reels',
-      categoryLabel: 'Reels / Vídeo',
-      caption: `Vídeo salvo via link rápido.\n\nConfira este conteúdo e aproveite o gancho para criar uma versão autêntica! 🚀\n\n#reels #viral #marketing`,
-      mediaUrl: cleanUrl,
-      thumbnailUrl: resolvedThumbnail,
-      videoUrl: cleanUrl,
-      mediaType: 'video',
-      tags: ['viral', 'reels', 'link-salvo'],
-      engagementTip: "Grave com gancho nos 3 primeiros segundos para maximizar a retenção."
-    };
-
-    const updated = [newTpl, ...templates];
-    saveTemplates(updated);
-
-    // Save to server asynchronously
-    fetch("/api/media-templates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newTpl)
-    }).catch(() => {});
+    if (newItems.length > 0) {
+      const updated = [...newItems, ...templates];
+      saveTemplates(updated);
+      showNotification(`✓ ${newItems.length === 1 ? 'Capa do link salva' : `${newItems.length} capas de links salvas`} com sucesso na Biblioteca!`, "success");
+    }
 
     setQuickLink("");
     setIsQuickSaving(false);
-    showNotification("Vídeo e capa salvos com sucesso na biblioteca!", "success");
+  };
+
+  // Batch Save Multiple Links from Modal
+  const handleBatchSaveLinks = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const raw = batchLinksInput.trim();
+    if (!raw) return;
+
+    const urls = raw.split(/[\n,]+/).map(u => u.trim()).filter(u => u.startsWith('http'));
+    if (urls.length === 0) {
+      showNotification("Nenhum link HTTP válido encontrado no texto.", "info");
+      return;
+    }
+
+    setIsBatchProcessing(true);
+    const newItems: MediaTemplate[] = [];
+
+    for (let i = 0; i < urls.length; i++) {
+      const cleanUrl = urls[i];
+      const parsed = parseMediaUrl(cleanUrl);
+      let finalThumb = parsed.thumbnailUrl || "";
+      let autoTitle = "";
+
+      try {
+        const resp = await fetch("/api/media/extract-meta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: cleanUrl })
+        });
+        if (resp.ok) {
+          const meta = await resp.json();
+          if (meta.thumbnailUrl) finalThumb = meta.thumbnailUrl;
+          if (meta.title) autoTitle = meta.title;
+        }
+      } catch (_) {}
+
+      const isIg = /instagram\.com/i.test(cleanUrl);
+      const isTt = /tiktok\.com/i.test(cleanUrl);
+      const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
+
+      const titleText = autoTitle || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Capa & Vídeo Salvo") + ` #${templates.length + newItems.length + 1}`;
+      const resolvedThumbnail = finalThumb || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: titleText });
+
+      const newTpl: MediaTemplate = {
+        id: `tpl-batch-${Date.now()}-${i}`,
+        title: titleText,
+        category: 'links_salvos' as any,
+        categoryLabel: isIg ? 'Instagram Reels' : isTt ? 'TikTok Vídeo' : isYt ? 'YouTube Shorts' : 'Link Adicionado',
+        caption: `Capa e vídeo salvos em lote via links adicionados.\n\n#linksalvo #reels #viral`,
+        mediaUrl: cleanUrl,
+        thumbnailUrl: resolvedThumbnail,
+        videoUrl: cleanUrl,
+        mediaType: 'video',
+        tags: ['link-salvo', 'link-adicionado', isIg ? 'instagram' : isTt ? 'tiktok' : 'youtube'],
+        engagementTip: "Item salvo permanentemente na sua Biblioteca de Capas & Mídias."
+      };
+
+      newItems.push(newTpl);
+
+      fetch("/api/media-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTpl)
+      }).catch(() => {});
+    }
+
+    if (newItems.length > 0) {
+      const updated = [...newItems, ...templates];
+      saveTemplates(updated);
+      showNotification(`✓ ${newItems.length} capas adicionadas à Biblioteca com sucesso!`, "success");
+    }
+
+    setBatchLinksInput("");
+    setIsBatchProcessing(false);
+    setIsAddModalOpen(false);
   };
 
   // Upload custom file in modal
@@ -920,26 +1063,78 @@ export default function MediaLibraryManager({
         </form>
       </div>
 
-      {/* Category Pills Filter */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {categories.map(cat => (
+      {/* Category Pills & View Mode Bar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-gray-200/80 shadow-2xs">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {categories.map(cat => {
+            const count = cat.id === 'all' 
+              ? templates.length 
+              : cat.id === 'links_salvos' 
+                ? templates.filter(t => t.category === 'links_salvos' || t.tags?.some(tag => tag.includes('link-salvo') || tag.includes('link-adicionado')) || /instagram\.com|tiktok\.com|youtube\.com|youtu\.be/i.test(t.mediaUrl || t.videoUrl || '')).length
+                : cat.id === 'minhas_publicacoes'
+                  ? templates.filter(t => t.category === 'minhas_publicacoes' || t.id.startsWith('post-tpl-')).length
+                  : templates.filter(t => t.category === cat.id).length;
+
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                  selectedCategory === cat.id
+                    ? 'bg-[#25172a] text-white shadow-xs'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <span>{cat.label}</span>
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-extrabold ${
+                    selectedCategory === cat.id ? 'bg-pink-500 text-white' : 'bg-gray-200 text-gray-700'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* View Options: Only My Links toggle & Clean Defaults */}
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
           <button
-            key={cat.id}
-            onClick={() => setSelectedCategory(cat.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-              selectedCategory === cat.id
-                ? 'bg-[#25172a] text-white shadow-xs'
-                : 'bg-white text-gray-600 border border-gray-200/80 hover:bg-gray-100'
+            type="button"
+            onClick={handleToggleOnlyUserLinks}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border cursor-pointer ${
+              onlyUserLinks 
+                ? 'bg-pink-600 border-pink-600 text-white shadow-xs' 
+                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
+            title="Ocultar modelos de inspiração padrão e exibir apenas as capas dos links que você adicionou"
           >
-            <span>{cat.label}</span>
-            {cat.id === 'minhas_publicacoes' && (
-              <span className="px-1.5 py-0.2 bg-pink-500 text-white rounded-full text-[9px] font-extrabold">
-                {templates.filter(t => t.category === 'minhas_publicacoes' || t.id.startsWith('post-tpl-')).length}
-              </span>
-            )}
+            <Eye className="w-3.5 h-3.5" />
+            <span>Apenas Meus Links ({templates.filter(isUserAddedItem).length})</span>
           </button>
-        ))}
+
+          {templates.some(t => INITIAL_TEMPLATES.some(it => it.id === t.id)) ? (
+            <button
+              type="button"
+              onClick={handleClearDefaultTemplates}
+              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-200 cursor-pointer"
+              title="Remover modelos de exemplo padrão da biblioteca"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleRestoreDefaultTemplates}
+              className="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-bold rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+              title="Restaurar modelos padrão de exemplo"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Restaurar Exemplos</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Templates Grid */}
@@ -1188,30 +1383,94 @@ export default function MediaLibraryManager({
               </button>
             </div>
 
-            {/* TAB SELECTOR: LINK VS UPLOAD DIRECT */}
-            <div className="grid grid-cols-2 p-1 bg-gray-100 rounded-2xl">
+            {/* TAB SELECTOR: LINK VS UPLOAD DIRECT VS BATCH */}
+            <div className="grid grid-cols-3 p-1 bg-gray-100 rounded-2xl">
               <button
                 type="button"
                 onClick={() => setAddModalTab('link')}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
                   addModalTab === 'link' ? 'bg-white text-pink-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 <LinkIcon className="w-3.5 h-3.5" />
-                <span>Link de Vídeo (Reels/TikTok)</span>
+                <span>Link Direto</span>
               </button>
               <button
                 type="button"
                 onClick={() => setAddModalTab('upload')}
-                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
                   addModalTab === 'upload' ? 'bg-white text-pink-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 <Upload className="w-3.5 h-3.5" />
-                <span>Enviar Imagem de Capa</span>
+                <span>Enviar Foto</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddModalTab('batch')}
+                className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  addModalTab === 'batch' ? 'bg-white text-pink-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Vários Links</span>
               </button>
             </div>
 
+            {addModalTab === 'batch' ? (
+              /* BATCH MULTI-LINK IMPORTER */
+              <form onSubmit={handleBatchSaveLinks} className="flex flex-col gap-4">
+                <div className="bg-pink-50/70 border border-pink-100 p-3.5 rounded-2xl flex flex-col gap-1">
+                  <span className="text-xs font-black text-pink-700 flex items-center gap-1.5">
+                    <Layers className="w-4 h-4" /> Importação de Links em Massa
+                  </span>
+                  <p className="text-[11px] text-gray-600 leading-relaxed">
+                    Cole múltiplos links de <strong>Instagram Reels, TikTok ou YouTube</strong> (um por linha). O sistema extrairá automaticamente a capa e o título de cada um e salvará todos na sua biblioteca.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 uppercase">Cole os Links (um por linha):</label>
+                  <textarea
+                    rows={6}
+                    placeholder={"https://www.instagram.com/reel/C3...\nhttps://www.tiktok.com/@user/video/...\nhttps://youtube.com/shorts/..."}
+                    value={batchLinksInput}
+                    onChange={e => setBatchLinksInput(e.target.value)}
+                    className="w-full mt-1.5 p-3.5 bg-gray-50 border border-gray-200 focus:border-pink-500 rounded-xl text-xs font-mono focus:outline-hidden"
+                    required
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="px-4 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isBatchProcessing || !batchLinksInput.trim()}
+                    className="px-6 py-2.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 disabled:opacity-50 text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    {isBatchProcessing ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Extraindo e Salvando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Salvar Todos os Links</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
             {addModalTab === 'link' && (
               /* Quick Sample Links */
               <div className="bg-pink-50/60 border border-pink-100 p-3 rounded-2xl flex flex-col gap-1.5">
@@ -1444,6 +1703,8 @@ export default function MediaLibraryManager({
               </div>
 
             </form>
+            </>
+            )}
           </div>
         </div>
       )}
