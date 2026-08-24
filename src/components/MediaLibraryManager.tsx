@@ -45,6 +45,128 @@ interface MediaLibraryManagerProps {
   showNotification: (msg: string, type: 'success' | 'info') => void;
 }
 
+// SVG Cover Generators for Instagram, TikTok and Direct Video when hosted on Vercel/production
+export function createInstagramCoverSvg(shortcode: string = '', title: string = 'Instagram Reels'): string {
+  const safeTitle = (title || 'Instagram Reels').slice(0, 32).replace(/[<>&"]/g, '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280" width="100%" height="100%">
+  <defs>
+    <linearGradient id="igGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4c1d95" />
+      <stop offset="25%" stop-color="#833ab4" />
+      <stop offset="50%" stop-color="#c13584" />
+      <stop offset="75%" stop-color="#e1306c" />
+      <stop offset="90%" stop-color="#fd1d1d" />
+      <stop offset="100%" stop-color="#f56040" />
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#igGrad)" />
+  <circle cx="600" cy="200" r="300" fill="#ffffff" opacity="0.08" />
+  <circle cx="100" cy="1100" r="250" fill="#000000" opacity="0.15" />
+  <g transform="translate(260, 440)">
+    <rect width="200" height="200" rx="55" fill="none" stroke="#ffffff" stroke-width="16" />
+    <circle cx="100" cy="100" r="48" fill="none" stroke="#ffffff" stroke-width="16" />
+    <circle cx="150" cy="50" r="12" fill="#ffffff" />
+  </g>
+  <g transform="translate(235, 680)">
+    <rect width="250" height="50" rx="25" fill="#000000" opacity="0.4" />
+    <text x="125" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">INSTAGRAM REELS</text>
+  </g>
+  <text x="360" y="780" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="bold" fill="#ffffff" text-anchor="middle">${safeTitle}</text>
+  ${shortcode ? `<text x="360" y="830" font-family="monospace" font-size="20" fill="#ffdfba" text-anchor="middle" opacity="0.9">@reel/${shortcode}</text>` : ''}
+</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+export function createTikTokCoverSvg(title: string = 'TikTok Vídeo'): string {
+  const safeTitle = (title || 'TikTok Vídeo').slice(0, 32).replace(/[<>&"]/g, '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280" width="100%" height="100%">
+  <defs>
+    <linearGradient id="ttGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f051d" />
+      <stop offset="50%" stop-color="#000000" />
+      <stop offset="100%" stop-color="#120320" />
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#ttGrad)" />
+  <circle cx="360" cy="520" r="160" fill="#fe2c55" opacity="0.15" />
+  <circle cx="360" cy="520" r="130" fill="#00f2fe" opacity="0.15" />
+  <g transform="translate(300, 420)">
+    <path d="M70,0 C78,25 98,40 120,42 L120,72 C104,71 88,62 76,50 L76,140 C76,173 49,200 16,200 C-17,200 -44,173 -44,140 C-44,107 -17,80 16,80 C24,80 32,82 38,85 L38,122 C32,118 24,116 16,116 C3,116 -8,127 -8,140 C-8,153 3,164 16,164 C29,164 40,153 40,140 L40,0 L70,0 Z" fill="#ffffff" />
+  </g>
+  <g transform="translate(250, 700)">
+    <rect width="220" height="48" rx="24" fill="#fe2c55" opacity="0.9" />
+    <text x="110" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2">TIKTOK VIRAL</text>
+  </g>
+  <text x="360" y="800" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="bold" fill="#ffffff" text-anchor="middle">${safeTitle}</text>
+  <text x="360" y="850" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" fill="#00f2fe" text-anchor="middle">♪ Som Original / Vídeo</text>
+</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+export function createVideoCoverSvg(title: string = 'Vídeo'): string {
+  const safeTitle = (title || 'Vídeo').slice(0, 32).replace(/[<>&"]/g, '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280" width="100%" height="100%">
+  <defs>
+    <linearGradient id="vidGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#180b22" />
+      <stop offset="50%" stop-color="#2d1339" />
+      <stop offset="100%" stop-color="#0a050f" />
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#vidGrad)" />
+  <circle cx="360" cy="540" r="90" fill="#db2777" opacity="0.3" />
+  <polygon points="335,490 415,540 335,590" fill="#ffffff" />
+  <g transform="translate(260, 680)">
+    <rect width="200" height="44" rx="22" fill="#db2777" opacity="0.85" />
+    <text x="100" y="28" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2">VÍDEO HD</text>
+  </g>
+  <text x="360" y="780" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="bold" fill="#ffffff" text-anchor="middle">${safeTitle}</text>
+</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+// Master cover resolver guaranteeing valid image on Vercel and production
+export function resolveCoverImage(tpl: { thumbnailUrl?: string; mediaUrl?: string; videoUrl?: string; title?: string }): string {
+  const thumb = (tpl.thumbnailUrl || '').trim();
+  
+  // 1. Direct valid image (data URL, blob, or image CDN)
+  if (thumb && (thumb.startsWith('data:image') || thumb.startsWith('blob:') || /\.(jpeg|jpg|png|webp|gif|svg|avif)(\?.*)?$/i.test(thumb) || /ytimg\.com|img\.youtube\.com|vumbnail\.com|tiktokcdn\.com|cdninstagram\.com|fbcdn\.net|images\.unsplash\.com|pexels\.com/i.test(thumb))) {
+    return thumb;
+  }
+
+  // 2. YouTube
+  const ytMatch = (tpl.videoUrl || tpl.mediaUrl || thumb).match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
+  }
+
+  // 3. Vimeo
+  const vimeoMatch = (tpl.videoUrl || tpl.mediaUrl || thumb).match(/(?:vimeo\.com\/)(\d+)/i);
+  if (vimeoMatch && vimeoMatch[1]) {
+    return `https://vumbnail.com/${vimeoMatch[1]}.jpg`;
+  }
+
+  // 4. Instagram
+  const instaMatch = (tpl.videoUrl || tpl.mediaUrl || thumb).match(/instagram\.com\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
+  if (instaMatch || /instagram\.com/i.test(tpl.videoUrl || tpl.mediaUrl || '')) {
+    const shortcode = instaMatch ? instaMatch[1] : '';
+    return createInstagramCoverSvg(shortcode, tpl.title || 'Instagram Reels');
+  }
+
+  // 5. TikTok
+  if (/tiktok\.com/i.test(tpl.videoUrl || tpl.mediaUrl || thumb)) {
+    return createTikTokCoverSvg(tpl.title || 'TikTok Vídeo');
+  }
+
+  // 6. Direct image file in mediaUrl
+  const mUrl = (tpl.mediaUrl || '').trim();
+  if (mUrl && (mUrl.startsWith('data:image') || mUrl.startsWith('blob:') || /\.(jpeg|jpg|png|webp|gif|svg|avif)(\?.*)?$/i.test(mUrl) || /images\.unsplash\.com|pexels\.com/i.test(mUrl))) {
+    return mUrl;
+  }
+
+  return createVideoCoverSvg(tpl.title || 'Vídeo');
+}
+
 // Helper to parse video / social link and extract embed & identifiers
 export function parseMediaUrl(inputUrl: string): {
   thumbnailUrl: string;
@@ -99,7 +221,7 @@ export function parseMediaUrl(inputUrl: string): {
   if (instaMatch && instaMatch[1]) {
     const shortcode = instaMatch[1];
     return {
-      thumbnailUrl: '',
+      thumbnailUrl: createInstagramCoverSvg(shortcode, 'Instagram Reels'),
       videoUrl: trimmed,
       mediaType: 'video',
       source: 'instagram',
@@ -112,7 +234,7 @@ export function parseMediaUrl(inputUrl: string): {
   // 4. TikTok
   if (/tiktok\.com/i.test(trimmed)) {
     return {
-      thumbnailUrl: '',
+      thumbnailUrl: createTikTokCoverSvg('TikTok Vídeo'),
       videoUrl: trimmed,
       mediaType: 'video',
       source: 'tiktok',
@@ -123,7 +245,7 @@ export function parseMediaUrl(inputUrl: string): {
   // 5. Direct Video File (.mp4, .webm, .mov, mixkit, pexels, blob/data)
   if (/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i.test(trimmed) || /mixkit\.co/i.test(trimmed) || /pexels\.com\/video/i.test(trimmed) || trimmed.startsWith('blob:') || trimmed.startsWith('data:video')) {
     return {
-      thumbnailUrl: '',
+      thumbnailUrl: createVideoCoverSvg('Vídeo MP4'),
       videoUrl: trimmed,
       mediaType: 'video',
       source: 'direct_video',
@@ -143,7 +265,7 @@ export function parseMediaUrl(inputUrl: string): {
   }
 
   return {
-    thumbnailUrl: '',
+    thumbnailUrl: createVideoCoverSvg('Link de Vídeo'),
     videoUrl: trimmed,
     mediaType: 'video',
     source: 'unknown',
@@ -409,11 +531,13 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
   };
 
   const handleApplyToScheduler = (tpl: MediaTemplate) => {
-    const finalMedia = tpl.videoUrl || tpl.mediaUrl || tpl.thumbnailUrl;
+    const resolvedCover = resolveCoverImage(tpl);
+    const finalVideo = tpl.videoUrl || tpl.mediaUrl || '';
     onUseTemplate({
       caption: tpl.caption,
-      mediaUrl: finalMedia,
+      mediaUrl: resolvedCover,
       mediaType: tpl.mediaType,
+      videoUrl: finalVideo,
       platforms: ['instagram', 'tiktok', 'youtube'],
       destinations: ['feed', 'story'],
       status: 'draft'
@@ -451,6 +575,8 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
 
     const titleText = autoTitle || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Vídeo & Capa Salvo") + ` #${templates.length + 1}`;
 
+    const resolvedThumbnail = finalThumb || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: titleText });
+
     const newTpl: MediaTemplate = {
       id: `tpl-${Date.now()}`,
       title: titleText,
@@ -458,7 +584,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
       categoryLabel: 'Reels / Vídeo',
       caption: `Vídeo salvo via link rápido.\n\nConfira este conteúdo e aproveite o gancho para criar uma versão autêntica! 🚀\n\n#reels #viral #marketing`,
       mediaUrl: cleanUrl,
-      thumbnailUrl: finalThumb || cleanUrl,
+      thumbnailUrl: resolvedThumbnail,
       videoUrl: cleanUrl,
       mediaType: 'video',
       tags: ['viral', 'reels', 'link-salvo'],
@@ -496,14 +622,14 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
       oferta: 'Oferta & Lançamento'
     };
 
-    const finalThumbnail = newCustomThumbnail.trim() || serverThumbnail || extractedInfo.thumbnailUrl || cleanUrl;
-
     const isIg = /instagram\.com/i.test(cleanUrl);
     const isTt = /tiktok\.com/i.test(cleanUrl);
     const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
 
     const autoTitle = newTitle.trim() || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Vídeo & Capa Salvo") + ` #${templates.length + 1}`;
     const autoCaption = newCaption.trim() || `Vídeo salvo na biblioteca (${extractedInfo.sourceLabel}).\n\nUse este formato para engajar seus seguidores com alto valor! 🚀\n\n#${newCategory} #viral #conteudo`;
+
+    const finalThumbnail = newCustomThumbnail.trim() || serverThumbnail || extractedInfo.thumbnailUrl || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: autoTitle });
 
     const newTpl: MediaTemplate = {
       id: `tpl-${Date.now()}`,
@@ -541,6 +667,35 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
     setServerEmbedUrl("");
 
     showNotification("Vídeo e capa salvos com sucesso na biblioteca!", "success");
+  };
+
+  // Upload custom thumbnail directly to a card
+  const handleUploadCustomCoverForCard = (tplId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const dataUrl = uploadEvent.target?.result as string;
+      if (!dataUrl) return;
+
+      const updated = templates.map(t => {
+        if (t.id === tplId) {
+          const mod = { ...t, thumbnailUrl: dataUrl };
+          fetch("/api/media-templates", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(mod)
+          }).catch(() => {});
+          return mod;
+        }
+        return t;
+      });
+
+      saveTemplates(updated);
+      showNotification("Capa atualizada com sucesso!", "success");
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteTemplate = (id: string) => {
@@ -660,7 +815,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
           {filteredTemplates.map(tpl => {
             const isDirectVideo = tpl.mediaUrl?.endsWith('.mp4') || tpl.videoUrl?.endsWith('.mp4');
             const hasVideo = Boolean(tpl.videoUrl || tpl.mediaType === 'video');
-            const coverImage = tpl.thumbnailUrl || tpl.mediaUrl;
+            const coverImage = resolveCoverImage(tpl);
             const isInstagram = Boolean(tpl.videoUrl && /instagram\.com/i.test(tpl.videoUrl));
             const isTikTok = Boolean(tpl.videoUrl && /tiktok\.com/i.test(tpl.videoUrl));
 
@@ -675,10 +830,17 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                     <img 
                       src={coverImage} 
                       alt={tpl.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-95"
                       referrerPolicy="no-referrer"
                       onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
+                        const target = e.target as HTMLImageElement;
+                        if (isInstagram) {
+                          target.src = createInstagramCoverSvg('', tpl.title);
+                        } else if (isTikTok) {
+                          target.src = createTikTokCoverSvg(tpl.title);
+                        } else {
+                          target.src = createVideoCoverSvg(tpl.title);
+                        }
                       }}
                     />
                   ) : isDirectVideo && tpl.videoUrl ? (
@@ -741,14 +903,28 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                     </span>
                   </div>
 
-                  {/* Delete Button */}
-                  <button
-                    onClick={() => handleDeleteTemplate(tpl.id)}
-                    className="absolute top-3 right-3 p-1.5 bg-black/60 hover:bg-red-600 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all z-20 cursor-pointer"
-                    title="Excluir da biblioteca"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Top Right Action Icons (Custom Cover Upload + Delete) */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5 z-20 opacity-0 group-hover:opacity-100 transition-all">
+                    <label 
+                      className="p-1.5 bg-black/70 hover:bg-pink-600 text-white rounded-lg transition-all cursor-pointer shadow-md flex items-center justify-center"
+                      title="Enviar/Trocar Imagem de Capa"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handleUploadCustomCoverForCard(tpl.id, e)} 
+                      />
+                    </label>
+                    <button
+                      onClick={() => handleDeleteTemplate(tpl.id)}
+                      className="p-1.5 bg-black/70 hover:bg-red-600 text-white rounded-lg transition-all cursor-pointer shadow-md flex items-center justify-center"
+                      title="Excluir da biblioteca"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
                   {/* Bottom link info */}
                   {tpl.videoUrl && (

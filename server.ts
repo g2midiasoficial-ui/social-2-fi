@@ -855,6 +855,63 @@ app.post("/api/media/extract-meta", async (req, res) => {
       });
     }
 
+    // Helper to generate dynamic SVG cover for Instagram & TikTok when scraping is blocked
+    const createIgSvgCover = (shortcode: string, title?: string) => {
+      const safeTitle = (title || 'Instagram Reels').slice(0, 32).replace(/[<>&"]/g, '');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280" width="100%" height="100%">
+        <defs>
+          <linearGradient id="igG" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#4c1d95" />
+            <stop offset="25%" stop-color="#833ab4" />
+            <stop offset="50%" stop-color="#c13584" />
+            <stop offset="75%" stop-color="#e1306c" />
+            <stop offset="90%" stop-color="#fd1d1d" />
+            <stop offset="100%" stop-color="#f56040" />
+          </linearGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#igG)" />
+        <circle cx="600" cy="200" r="300" fill="#ffffff" opacity="0.08" />
+        <circle cx="100" cy="1100" r="250" fill="#000000" opacity="0.15" />
+        <g transform="translate(260, 440)">
+          <rect width="200" height="200" rx="55" fill="none" stroke="#ffffff" stroke-width="16" />
+          <circle cx="100" cy="100" r="48" fill="none" stroke="#ffffff" stroke-width="16" />
+          <circle cx="150" cy="50" r="12" fill="#ffffff" />
+        </g>
+        <g transform="translate(235, 680)">
+          <rect width="250" height="50" rx="25" fill="#000000" opacity="0.4" />
+          <text x="125" y="32" font-family="-apple-system, sans-serif" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">INSTAGRAM REELS</text>
+        </g>
+        <text x="360" y="780" font-family="-apple-system, sans-serif" font-size="34" font-weight="bold" fill="#ffffff" text-anchor="middle">${safeTitle}</text>
+        ${shortcode ? `<text x="360" y="830" font-family="monospace" font-size="20" fill="#ffdfba" text-anchor="middle" opacity="0.9">@reel/${shortcode}</text>` : ''}
+      </svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    };
+
+    const createTtSvgCover = (title?: string) => {
+      const safeTitle = (title || 'TikTok Vídeo').slice(0, 32).replace(/[<>&"]/g, '');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280" width="100%" height="100%">
+        <defs>
+          <linearGradient id="ttG" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0f051d" />
+            <stop offset="50%" stop-color="#000000" />
+            <stop offset="100%" stop-color="#120320" />
+          </linearGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#ttG)" />
+        <circle cx="360" cy="520" r="140" fill="#fe2c55" opacity="0.15" />
+        <circle cx="360" cy="520" r="110" fill="#00f2fe" opacity="0.15" />
+        <g transform="translate(300, 420)">
+          <path d="M70,0 C78,25 98,40 120,42 L120,72 C104,71 88,62 76,50 L76,140 C76,173 49,200 16,200 C-17,200 -44,173 -44,140 C-44,107 -17,80 16,80 C24,80 32,82 38,85 L38,122 C32,118 24,116 16,116 C3,116 -8,127 -8,140 C-8,153 3,164 16,164 C29,164 40,153 40,140 L40,0 L70,0 Z" fill="#ffffff" />
+        </g>
+        <g transform="translate(250, 700)">
+          <rect width="220" height="48" rx="24" fill="#fe2c55" opacity="0.9" />
+          <text x="110" y="30" font-family="-apple-system, sans-serif" font-size="18" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2">TIKTOK VIRAL</text>
+        </g>
+        <text x="360" y="800" font-family="-apple-system, sans-serif" font-size="34" font-weight="bold" fill="#ffffff" text-anchor="middle">${safeTitle}</text>
+      </svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    };
+
     // 2. TikTok via Official oEmbed
     if (/tiktok\.com/i.test(cleanUrl)) {
       try {
@@ -873,7 +930,7 @@ app.post("/api/media/extract-meta", async (req, res) => {
               sourceLabel: "TikTok",
               title: data.title || "",
               author: data.author_name || "",
-              thumbnailUrl: data.thumbnail_url || "",
+              thumbnailUrl: data.thumbnail_url || createTtSvgCover(data.title),
               videoUrl: cleanUrl,
               embedHtml: data.html || "",
               mediaType: "video"
@@ -888,7 +945,7 @@ app.post("/api/media/extract-meta", async (req, res) => {
         success: true,
         source: "tiktok",
         sourceLabel: "TikTok",
-        thumbnailUrl: "",
+        thumbnailUrl: createTtSvgCover("TikTok Vídeo"),
         videoUrl: cleanUrl,
         mediaType: "video"
       });
@@ -926,12 +983,14 @@ app.post("/api/media/extract-meta", async (req, res) => {
         console.warn("Instagram OpenGraph scrape attempt:", e.message);
       }
 
+      const finalThumb = scrapedThumb || createIgSvgCover(shortcode, scrapedTitle);
+
       return res.json({
         success: true,
         source: "instagram",
         sourceLabel: "Instagram Reels",
         shortcode,
-        thumbnailUrl: scrapedThumb || "",
+        thumbnailUrl: finalThumb,
         videoUrl: cleanUrl,
         embedUrl,
         title: scrapedTitle || "",

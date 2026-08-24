@@ -951,7 +951,7 @@ export default function PostCreatorModal({
               
               {/* Simulator Post Media Backdrop layer */}
               {mediaUrl ? (
-                mediaType === 'video' ? (
+                mediaType === 'video' && (mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.webm') || mediaUrl.startsWith('blob:') || mediaUrl.startsWith('data:video')) ? (
                   <video 
                     src={mediaUrl} 
                     autoPlay 
@@ -966,6 +966,9 @@ export default function PostCreatorModal({
                     alt="Post preview frame" 
                     className="absolute inset-0 w-full h-full object-cover filter brightness-[0.7] select-none pointer-events-none"
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=800&fit=crop';
+                    }}
                   />
                 )
               ) : (

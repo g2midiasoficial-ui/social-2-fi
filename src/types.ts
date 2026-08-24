@@ -6,6 +6,7 @@ export interface SocialPost {
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
   mediaUrl?: string;
+  videoUrl?: string;
   mediaType?: 'image' | 'video';
   status: 'scheduled' | 'published' | 'draft';
   bestTimeScore?: number; // 0-100 score for best times visual highlights
