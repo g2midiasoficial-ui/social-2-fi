@@ -1005,6 +1005,73 @@ app.post("/api/media/extract-meta", async (req, res) => {
   }
 });
 
+// Media Library Templates Endpoints (Firestore + Local fallback)
+app.get("/api/media-templates", async (req, res) => {
+  try {
+    const db = await getFirestoreDb();
+    if (db) {
+      const snap = await db.collection("media_templates").orderBy("createdAt", "desc").get();
+      if (!snap.empty) {
+        const templates = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return res.json({ success: true, templates });
+      }
+    }
+  } catch (err: any) {
+    console.warn("Firestore templates get fallback:", err.message);
+  }
+
+  const localTemplates = readLocalFile(".local_media_templates.json", []);
+  return res.json({ success: true, templates: localTemplates });
+});
+
+app.post("/api/media-templates", async (req, res) => {
+  const template = req.body;
+  if (!template || !template.id) {
+    return res.status(400).json({ error: "Dados do modelo inválidos." });
+  }
+
+  try {
+    const db = await getFirestoreDb();
+    if (db) {
+      await db.collection("media_templates").doc(template.id).set({
+        ...template,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+    }
+  } catch (err: any) {
+    console.warn("Firestore template save fallback:", err.message);
+  }
+
+  const localTemplates = readLocalFile(".local_media_templates.json", []);
+  const existingIdx = localTemplates.findIndex((t: any) => t.id === template.id);
+  if (existingIdx >= 0) {
+    localTemplates[existingIdx] = template;
+  } else {
+    localTemplates.unshift(template);
+  }
+  writeLocalFile(".local_media_templates.json", localTemplates);
+
+  return res.json({ success: true, template });
+});
+
+app.delete("/api/media-templates/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const db = await getFirestoreDb();
+    if (db) {
+      await db.collection("media_templates").doc(id).delete();
+    }
+  } catch (err: any) {
+    console.warn("Firestore template delete fallback:", err.message);
+  }
+
+  const localTemplates = readLocalFile(".local_media_templates.json", []);
+  const updated = localTemplates.filter((t: any) => t.id !== id);
+  writeLocalFile(".local_media_templates.json", updated);
+
+  return res.json({ success: true, id });
+});
+
 // Start integration server
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

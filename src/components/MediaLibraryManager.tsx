@@ -21,7 +21,9 @@ import {
   Flame,
   Layers,
   Wand2,
-  Film
+  Film,
+  Save,
+  CheckCircle2
 } from "lucide-react";
 
 export interface MediaTemplate {
@@ -273,7 +275,11 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
   // Video player modal state
   const [activeVideoModal, setActiveVideoModal] = useState<MediaTemplate | null>(null);
 
-  // Form states for new template
+  // Quick link state
+  const [quickLink, setQuickLink] = useState("");
+  const [isQuickSaving, setIsQuickSaving] = useState(false);
+
+  // Form states for new template in modal
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<'reels' | 'carrossel' | 'copy' | 'quote' | 'oferta'>('reels');
   const [newCaption, setNewCaption] = useState("");
@@ -288,6 +294,31 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
   const [serverThumbnail, setServerThumbnail] = useState<string>("");
   const [isFetchingMeta, setIsFetchingMeta] = useState(false);
   const [serverEmbedUrl, setServerEmbedUrl] = useState<string>("");
+
+  // Sync templates from server on mount
+  useEffect(() => {
+    fetch("/api/media-templates")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.templates) && data.templates.length > 0) {
+          setTemplates(prev => {
+            const map = new Map<string, MediaTemplate>();
+            // Add server templates
+            data.templates.forEach((t: MediaTemplate) => map.set(t.id, t));
+            // Add local templates if not present
+            prev.forEach(t => {
+              if (!map.has(t.id)) map.set(t.id, t);
+            });
+            const merged = Array.from(map.values());
+            localStorage.setItem("socialflow_media_library", JSON.stringify(merged));
+            return merged;
+          });
+        }
+      })
+      .catch(err => {
+        console.warn("Could not sync media templates from server:", err);
+      });
+  }, []);
 
   // Extract real cover from backend for Instagram, TikTok, YouTube etc.
   useEffect(() => {
@@ -390,9 +421,72 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
     showNotification("Modelo e capa carregados no Agendador de Posts!", "success");
   };
 
+  // Quick Save directly from top bar
+  const handleQuickSaveLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanUrl = quickLink.trim();
+    if (!cleanUrl) return;
+
+    setIsQuickSaving(true);
+    const parsed = parseMediaUrl(cleanUrl);
+    let finalThumb = parsed.thumbnailUrl || "";
+    let autoTitle = "";
+
+    try {
+      const resp = await fetch("/api/media/extract-meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: cleanUrl })
+      });
+      if (resp.ok) {
+        const meta = await resp.json();
+        if (meta.thumbnailUrl) finalThumb = meta.thumbnailUrl;
+        if (meta.title) autoTitle = meta.title;
+      }
+    } catch (_) {}
+
+    const isIg = /instagram\.com/i.test(cleanUrl);
+    const isTt = /tiktok\.com/i.test(cleanUrl);
+    const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
+
+    const titleText = autoTitle || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Vídeo & Capa Salvo") + ` #${templates.length + 1}`;
+
+    const newTpl: MediaTemplate = {
+      id: `tpl-${Date.now()}`,
+      title: titleText,
+      category: 'reels',
+      categoryLabel: 'Reels / Vídeo',
+      caption: `Vídeo salvo via link rápido.\n\nConfira este conteúdo e aproveite o gancho para criar uma versão autêntica! 🚀\n\n#reels #viral #marketing`,
+      mediaUrl: cleanUrl,
+      thumbnailUrl: finalThumb || cleanUrl,
+      videoUrl: cleanUrl,
+      mediaType: 'video',
+      tags: ['viral', 'reels', 'link-salvo'],
+      engagementTip: "Grave com gancho nos 3 primeiros segundos para maximizar a retenção."
+    };
+
+    const updated = [newTpl, ...templates];
+    saveTemplates(updated);
+
+    // Save to server asynchronously
+    fetch("/api/media-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newTpl)
+    }).catch(() => {});
+
+    setQuickLink("");
+    setIsQuickSaving(false);
+    showNotification("Vídeo e capa salvos com sucesso na biblioteca!", "success");
+  };
+
   const handleCreateTemplate = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !newCaption.trim()) return;
+    const cleanUrl = newMediaUrl.trim();
+    if (!cleanUrl) {
+      showNotification("Por favor, cole um link de vídeo.", "info");
+      return;
+    }
 
     const categoryLabels: Record<string, string> = {
       reels: 'Reels / Vídeo',
@@ -402,34 +496,57 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
       oferta: 'Oferta & Lançamento'
     };
 
-    const finalThumbnail = newCustomThumbnail.trim() || serverThumbnail || extractedInfo.thumbnailUrl || newMediaUrl;
+    const finalThumbnail = newCustomThumbnail.trim() || serverThumbnail || extractedInfo.thumbnailUrl || cleanUrl;
+
+    const isIg = /instagram\.com/i.test(cleanUrl);
+    const isTt = /tiktok\.com/i.test(cleanUrl);
+    const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
+
+    const autoTitle = newTitle.trim() || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Vídeo & Capa Salvo") + ` #${templates.length + 1}`;
+    const autoCaption = newCaption.trim() || `Vídeo salvo na biblioteca (${extractedInfo.sourceLabel}).\n\nUse este formato para engajar seus seguidores com alto valor! 🚀\n\n#${newCategory} #viral #conteudo`;
 
     const newTpl: MediaTemplate = {
       id: `tpl-${Date.now()}`,
-      title: newTitle,
+      title: autoTitle,
       category: newCategory,
       categoryLabel: categoryLabels[newCategory] || 'Geral',
-      caption: newCaption,
-      mediaUrl: newMediaUrl,
+      caption: autoCaption,
+      mediaUrl: cleanUrl,
       thumbnailUrl: finalThumbnail,
-      videoUrl: extractedInfo.videoUrl || newMediaUrl,
+      videoUrl: extractedInfo.videoUrl || cleanUrl,
       mediaType: newMediaType,
       tags: newTags.split(',').map(t => t.trim()).filter(Boolean),
-      engagementTip: newTip || "Grave com gancho nos 3 primeiros segundos para maximizar o algoritmo."
+      engagementTip: newTip.trim() || "Grave com gancho nos 3 primeiros segundos para maximizar o algoritmo."
     };
 
     const updated = [newTpl, ...templates];
     saveTemplates(updated);
+
+    // Save to server asynchronously
+    fetch("/api/media-templates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newTpl)
+    }).catch(() => {});
+
+    // CLOSE THE MODAL IMMEDIATELY
     setIsAddModalOpen(false);
+
+    // Reset inputs
     setNewTitle("");
     setNewCaption("");
     setNewCustomThumbnail("");
-    showNotification("Novo modelo com vídeo e capa salvo com sucesso!", "success");
+    setNewMediaUrl("");
+    setServerThumbnail("");
+    setServerEmbedUrl("");
+
+    showNotification("Vídeo e capa salvos com sucesso na biblioteca!", "success");
   };
 
   const handleDeleteTemplate = (id: string) => {
     const updated = templates.filter(t => t.id !== id);
     saveTemplates(updated);
+    fetch(`/api/media-templates/${id}`, { method: "DELETE" }).catch(() => {});
     showNotification("Modelo removido da biblioteca.", "info");
   };
 
@@ -476,6 +593,40 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
             <span>Adicionar Link de Vídeo / Post</span>
           </button>
         </div>
+      </div>
+
+      {/* Quick Paste & Save Link Bar directly on page */}
+      <div className="bg-gradient-to-r from-pink-50 via-purple-50 to-indigo-50 p-4 md:p-5 rounded-3xl border border-pink-100 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center gap-3">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-pink-600 to-violet-600 text-white flex items-center justify-center shadow-xs">
+            <LinkIcon className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-xs font-black text-gray-900 block">Salvar Link Rápido de Vídeo</span>
+            <span className="text-[10px] text-gray-500">Instagram Reels, TikTok, YouTube Shorts ou MP4</span>
+          </div>
+        </div>
+
+        <form onSubmit={handleQuickSaveLink} className="flex-1 flex items-center gap-2">
+          <div className="relative flex-1">
+            <input
+              type="url"
+              placeholder="Cole o link aqui: https://www.instagram.com/reel/... ou https://www.tiktok.com/@..."
+              value={quickLink}
+              onChange={e => setQuickLink(e.target.value)}
+              className="w-full pl-3.5 pr-4 py-2.5 bg-white border border-pink-200 rounded-xl text-xs font-medium text-gray-900 focus:outline-pink-500 shadow-2xs"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isQuickSaving || !quickLink.trim()}
+            className="px-4 py-2.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0 hover:scale-102"
+          >
+            {isQuickSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            <span>Salvar Link</span>
+          </button>
+        </form>
       </div>
 
       {/* Category Pills Filter */}
@@ -848,13 +999,12 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
               {/* Title & Category */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-gray-700 uppercase">Título do Vídeo / Modelo</label>
+                  <label className="text-[11px] font-bold text-gray-700 uppercase">Título do Vídeo / Modelo (Opcional)</label>
                   <input 
                     type="text" 
-                    placeholder="ex: Roteiro Viral para Reels / TikTok" 
+                    placeholder="ex: Roteiro Viral para Reels / TikTok (ou gerado auto)" 
                     value={newTitle} 
                     onChange={e => setNewTitle(e.target.value)}
-                    required
                     className="w-full mt-1 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-medium focus:outline-pink-500"
                   />
                 </div>
@@ -877,13 +1027,15 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
 
               {/* Caption */}
               <div>
-                <label className="text-[11px] font-bold text-gray-700 uppercase">Legenda / Roteiro do Vídeo</label>
+                <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center justify-between">
+                  <span>Legenda / Roteiro do Vídeo (Opcional)</span>
+                  <span className="text-[10px] text-gray-400 font-normal">Preenchimento automático se vazio</span>
+                </label>
                 <textarea 
                   rows={3}
-                  placeholder="Escreva a legenda com ganchos, corpo do texto e chamada para ação..." 
+                  placeholder="Escreva a legenda com ganchos, corpo do texto e hashtags (ou deixe em branco)..." 
                   value={newCaption} 
                   onChange={e => setNewCaption(e.target.value)}
-                  required
                   className="w-full mt-1 p-3 border border-gray-200 rounded-xl text-xs focus:outline-pink-500 leading-relaxed font-medium"
                 />
               </div>
@@ -928,12 +1080,22 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                 </div>
               </div>
 
-              <button
-                type="submit"
-                className="w-full py-3.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all mt-2 cursor-pointer hover:scale-[1.01]"
-              >
-                Salvar Vídeo & Capa na Biblioteca
-              </button>
+              <div className="flex items-center gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-5 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.01]"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>Salvar Vídeo & Fechar Janela</span>
+                </button>
+              </div>
             </form>
           </div>
         </div>
