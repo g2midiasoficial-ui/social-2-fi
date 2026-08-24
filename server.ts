@@ -830,6 +830,37 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "healthy", hasGeminiKey: !!process.env.GEMINI_API_KEY });
 });
 
+// Image proxy endpoint to bypass CDN referer and hotlink blocks (e.g. Instagram / TikTok CDNs)
+app.get("/api/media/proxy-image", async (req, res) => {
+  const imageUrl = req.query.url as string;
+  if (!imageUrl || !imageUrl.startsWith("http")) {
+    return res.status(400).send("URL de imagem inválida.");
+  }
+
+  try {
+    const resp = await fetch(imageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+      }
+    });
+
+    if (!resp.ok) {
+      return res.status(resp.status).send("Falha ao buscar imagem remota.");
+    }
+
+    const contentType = resp.headers.get("content-type") || "image/jpeg";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    const arrayBuffer = await resp.arrayBuffer();
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    console.warn("Proxy image error:", err.message);
+    return res.status(500).send("Erro no proxy de imagem.");
+  }
+});
+
 // Meta & Real Cover Extractor for Instagram, TikTok, YouTube, Vimeo and Videos
 app.post("/api/media/extract-meta", async (req, res) => {
   const { url } = req.body;
@@ -957,30 +988,78 @@ app.post("/api/media/extract-meta", async (req, res) => {
       const shortcode = instaMatch[1];
       const embedUrl = `https://www.instagram.com/reel/${shortcode}/embed`;
       
-      // Try scraping OpenGraph og:image with bot UA
       let scrapedThumb = "";
       let scrapedTitle = "";
+
+      // 3A. Try Instagram Embed captioned page (high success rate for real image)
       try {
-        const pageResp = await fetch(cleanUrl, {
+        const embedResp = await fetch(`https://www.instagram.com/p/${shortcode}/embed/captioned/`, {
           headers: {
-            "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7"
           }
         });
-        if (pageResp.ok) {
-          const html = await pageResp.text();
-          const ogImgMatch = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']/i) ||
-                             html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:image["']/i);
-          if (ogImgMatch && ogImgMatch[1]) {
-            scrapedThumb = ogImgMatch[1].replace(/&amp;/g, '&');
-          }
-          const ogTitleMatch = html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i);
-          if (ogTitleMatch && ogTitleMatch[1]) {
-            scrapedTitle = ogTitleMatch[1];
+        if (embedResp.ok) {
+          const embedHtml = await embedResp.text();
+          // Check for EmbeddedMediaImage or display_url
+          const imgMatch = embedHtml.match(/<img[^>]+class=["'][^"']*EmbeddedMediaImage[^"']*["'][^>]+src=["']([^"']+)["']/i) ||
+                           embedHtml.match(/<img[^>]+src=["']([^"']+)["'][^>]+class=["'][^"']*EmbeddedMediaImage[^"']*["']/i) ||
+                           embedHtml.match(/class=["']EmbeddedMediaImage["'][^>]*src=["']([^"']+)["']/i) ||
+                           embedHtml.match(/"display_url":"([^"]+)"/i) ||
+                           embedHtml.match(/"thumbnail_src":"([^"]+)"/i);
+          if (imgMatch && imgMatch[1]) {
+            scrapedThumb = imgMatch[1].replace(/\\u0026/g, '&').replace(/&amp;/g, '&');
           }
         }
       } catch (e: any) {
-        console.warn("Instagram OpenGraph scrape attempt:", e.message);
+        console.warn("Instagram embed extraction attempt:", e.message);
+      }
+
+      // 3B. Try official oEmbed
+      if (!scrapedThumb) {
+        try {
+          const oembResp = await fetch(`https://api.instagram.com/oembed/?url=${encodeURIComponent(cleanUrl)}`, {
+            headers: {
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+            }
+          });
+          if (oembResp.ok) {
+            const oembData: any = await oembResp.json();
+            if (oembData.thumbnail_url) {
+              scrapedThumb = oembData.thumbnail_url;
+            }
+            if (oembData.title) {
+              scrapedTitle = oembData.title;
+            }
+          }
+        } catch (_) {}
+      }
+
+      // 3C. Try OpenGraph scraping on the original link
+      if (!scrapedThumb) {
+        try {
+          const pageResp = await fetch(cleanUrl, {
+            headers: {
+              "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            }
+          });
+          if (pageResp.ok) {
+            const html = await pageResp.text();
+            const ogImgMatch = html.match(/<meta\s+(?:property|name)=["']og:image["']\s+content=["']([^"']+)["']/i) ||
+                               html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:image["']/i);
+            if (ogImgMatch && ogImgMatch[1]) {
+              scrapedThumb = ogImgMatch[1].replace(/&amp;/g, '&');
+            }
+            const ogTitleMatch = html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i);
+            if (ogTitleMatch && ogTitleMatch[1]) {
+              scrapedTitle = ogTitleMatch[1];
+            }
+          }
+        } catch (e: any) {
+          console.warn("Instagram OpenGraph scrape attempt:", e.message);
+        }
       }
 
       const finalThumb = scrapedThumb || createIgSvgCover(shortcode, scrapedTitle);

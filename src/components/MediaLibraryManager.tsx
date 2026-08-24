@@ -129,8 +129,8 @@ export function createVideoCoverSvg(title: string = 'Vídeo'): string {
 export function resolveCoverImage(tpl: { thumbnailUrl?: string; mediaUrl?: string; videoUrl?: string; title?: string }): string {
   const thumb = (tpl.thumbnailUrl || '').trim();
   
-  // 1. Direct valid image (data URL, blob, or image CDN)
-  if (thumb && (thumb.startsWith('data:image') || thumb.startsWith('blob:') || /\.(jpeg|jpg|png|webp|gif|svg|avif)(\?.*)?$/i.test(thumb) || /ytimg\.com|img\.youtube\.com|vumbnail\.com|tiktokcdn\.com|cdninstagram\.com|fbcdn\.net|images\.unsplash\.com|pexels\.com/i.test(thumb))) {
+  // 1. Direct valid image (data URL, blob, proxy, or any remote image URL)
+  if (thumb && (thumb.startsWith('data:image') || thumb.startsWith('blob:') || thumb.startsWith('http://') || thumb.startsWith('https://') || thumb.startsWith('/api/'))) {
     return thumb;
   }
 
@@ -146,21 +146,21 @@ export function resolveCoverImage(tpl: { thumbnailUrl?: string; mediaUrl?: strin
     return `https://vumbnail.com/${vimeoMatch[1]}.jpg`;
   }
 
-  // 4. Instagram
+  // 4. Instagram Fallback only when no real thumb is available
   const instaMatch = (tpl.videoUrl || tpl.mediaUrl || thumb).match(/instagram\.com\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
   if (instaMatch || /instagram\.com/i.test(tpl.videoUrl || tpl.mediaUrl || '')) {
     const shortcode = instaMatch ? instaMatch[1] : '';
     return createInstagramCoverSvg(shortcode, tpl.title || 'Instagram Reels');
   }
 
-  // 5. TikTok
+  // 5. TikTok Fallback only when no real thumb is available
   if (/tiktok\.com/i.test(tpl.videoUrl || tpl.mediaUrl || thumb)) {
     return createTikTokCoverSvg(tpl.title || 'TikTok Vídeo');
   }
 
   // 6. Direct image file in mediaUrl
   const mUrl = (tpl.mediaUrl || '').trim();
-  if (mUrl && (mUrl.startsWith('data:image') || mUrl.startsWith('blob:') || /\.(jpeg|jpg|png|webp|gif|svg|avif)(\?.*)?$/i.test(mUrl) || /images\.unsplash\.com|pexels\.com/i.test(mUrl))) {
+  if (mUrl && (mUrl.startsWith('data:image') || mUrl.startsWith('blob:') || mUrl.startsWith('http://') || mUrl.startsWith('https://'))) {
     return mUrl;
   }
 
@@ -221,7 +221,7 @@ export function parseMediaUrl(inputUrl: string): {
   if (instaMatch && instaMatch[1]) {
     const shortcode = instaMatch[1];
     return {
-      thumbnailUrl: createInstagramCoverSvg(shortcode, 'Instagram Reels'),
+      thumbnailUrl: '', // Let async extract-meta fetch real photo
       videoUrl: trimmed,
       mediaType: 'video',
       source: 'instagram',
@@ -234,7 +234,7 @@ export function parseMediaUrl(inputUrl: string): {
   // 4. TikTok
   if (/tiktok\.com/i.test(trimmed)) {
     return {
-      thumbnailUrl: createTikTokCoverSvg('TikTok Vídeo'),
+      thumbnailUrl: '', // Let async extract-meta fetch real photo
       videoUrl: trimmed,
       mediaType: 'video',
       source: 'tiktok',
@@ -245,7 +245,7 @@ export function parseMediaUrl(inputUrl: string): {
   // 5. Direct Video File (.mp4, .webm, .mov, mixkit, pexels, blob/data)
   if (/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i.test(trimmed) || /mixkit\.co/i.test(trimmed) || /pexels\.com\/video/i.test(trimmed) || trimmed.startsWith('blob:') || trimmed.startsWith('data:video')) {
     return {
-      thumbnailUrl: createVideoCoverSvg('Vídeo MP4'),
+      thumbnailUrl: '',
       videoUrl: trimmed,
       mediaType: 'video',
       source: 'direct_video',
@@ -834,6 +834,11 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                       referrerPolicy="no-referrer"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
+                        // Try fetching via server proxy if remote CDN blocked direct access
+                        if (coverImage.startsWith('http') && !target.src.includes('/api/media/proxy-image')) {
+                          target.src = `/api/media/proxy-image?url=${encodeURIComponent(coverImage)}`;
+                          return;
+                        }
                         if (isInstagram) {
                           target.src = createInstagramCoverSvg('', tpl.title);
                         } else if (isTikTok) {
@@ -1119,6 +1124,13 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                         alt="Capa do Vídeo"
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          const currentSrc = newCustomThumbnail || serverThumbnail || extractedInfo.thumbnailUrl;
+                          if (currentSrc.startsWith('http') && !target.src.includes('/api/media/proxy-image')) {
+                            target.src = `/api/media/proxy-image?url=${encodeURIComponent(currentSrc)}`;
+                          }
+                        }}
                       />
                     ) : extractedInfo.source === 'instagram' ? (
                       <div className="flex flex-col items-center justify-center p-4 text-center gap-2">
