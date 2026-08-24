@@ -42,5 +42,27 @@ export interface AnalyticsMetric {
 }
 
 export type MainTab = 'analitica' | 'planeamento';
-export type SubTabCalendar = 'calendario' | 'trello' | 'lista' | 'biblioteca' | 'autolistas';
+export type SubTabCalendar = 'calendario' | 'trello' | 'lista' | 'biblioteca' | 'autolistas' | 'transcritor';
 export type SubTabAnalytics = 'resumo' | 'comunidade' | 'demograficos' | 'publicacoes';
+
+export interface VideoRemixResult {
+  originalTranscript: string;
+  hookOriginal: string;
+  toneDetected: string;
+  retentionTechniques: string[];
+  viralRemixScript: {
+    hook3s: string;
+    bodyStory: string;
+    callToAction: string;
+    fullScript: string;
+  };
+  socialCaption: string;
+  hashtags: string[];
+  alternativeHooks: string[];
+  recordingTips: {
+    visualsAndAngles: string;
+    onScreenText: string;
+    audioAndMusic: string;
+  };
+  isMock?: boolean;
+}

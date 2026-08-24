@@ -23,7 +23,8 @@ import {
   FolderHeart,
   Cable,
   Database,
-  Globe
+  Globe,
+  Video
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -36,6 +37,7 @@ interface NavigationProps {
   setActiveSubTabAnalytics: (tab: SubTabAnalytics) => void;
   currentProfile: { username: string; avatar: string; email?: string };
   onOpenN8NModal?: () => void;
+  onOpenSettingsModal?: () => void;
   onLogout?: () => void;
   onGoToLanding?: () => void;
 }
@@ -49,6 +51,7 @@ export default function Navigation({
   setActiveSubTabAnalytics,
   currentProfile,
   onOpenN8NModal,
+  onOpenSettingsModal,
   onLogout,
   onGoToLanding
 }: NavigationProps) {
@@ -177,13 +180,25 @@ export default function Navigation({
                   <p className="text-xs text-pink-400 font-semibold uppercase">Logado como</p>
                   <p className="font-semibold truncate">{currentProfile.username}</p>
                 </div>
-                <button className="w-full flex items-center gap-2.5 px-4 py-2 text-left hover:bg-[#341f3b] transition-colors">
-                  <User className="w-4 h-4 text-gray-400" />
+                <button 
+                  onClick={() => {
+                    setProfileDropdownOpen(false);
+                    onOpenSettingsModal?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-left hover:bg-[#341f3b] transition-colors cursor-pointer"
+                >
+                  <User className="w-4 h-4 text-pink-400" />
                   <span>Meu Perfil</span>
                 </button>
-                <button className="w-full flex items-center gap-2.5 px-4 py-2 text-left hover:bg-[#341f3b] transition-colors">
+                <button 
+                  onClick={() => {
+                    setProfileDropdownOpen(false);
+                    onOpenSettingsModal?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-4 py-2 text-left hover:bg-[#341f3b] transition-colors cursor-pointer"
+                >
                   <Settings className="w-4 h-4 text-gray-400" />
-                  <span>Configurações</span>
+                  <span>Configurações & APIs</span>
                 </button>
                 <button className="w-full flex items-center gap-2.5 px-4 py-2 text-left hover:bg-[#341f3b] transition-colors">
                   <HelpCircle className="w-4 h-4 text-gray-400" />
@@ -286,6 +301,25 @@ export default function Navigation({
               }`}
             >
               Autolistas
+            </button>
+            <button
+              id="sub-tab-transcritor"
+              onClick={() => setActiveSubTabCalendar('transcritor')}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all cursor-pointer ${
+                activeSubTabCalendar === 'transcritor'
+                  ? 'bg-gradient-to-r from-pink-600 to-violet-600 text-white shadow-md font-bold'
+                  : 'text-pink-600 hover:bg-pink-50 font-semibold border border-pink-200/80 bg-pink-50/50'
+              }`}
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Transcrever Vídeo & Remix IA</span>
+              <span className={`px-1.5 py-0.2 text-[9px] rounded-full font-black uppercase tracking-wider ${
+                activeSubTabCalendar === 'transcritor'
+                  ? 'bg-white text-pink-700'
+                  : 'bg-gradient-to-r from-pink-500 to-violet-600 text-white'
+              }`}>
+                Viral
+              </span>
             </button>
             <button
               id="sub-tab-deleted"

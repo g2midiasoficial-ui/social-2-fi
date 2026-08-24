@@ -8,6 +8,10 @@ import PostCreatorModal from "./components/PostCreatorModal";
 import AnalyticsDashboard from "./components/AnalyticsDashboard";
 import ConnectChannelModal from "./components/ConnectChannelModal";
 import N8NWorkflowModal from "./components/N8NWorkflowModal";
+import AutoListsManager from "./components/AutoListsManager";
+import MediaLibraryManager from "./components/MediaLibraryManager";
+import ProfileSettingsModal from "./components/ProfileSettingsModal";
+import VideoTranscriberRemix from "./components/VideoTranscriberRemix";
 import SalesPage from "./components/SalesPage";
 import LoginScreen from "./components/LoginScreen";
 import { 
@@ -44,6 +48,7 @@ export default function App() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [connectModalInitialId, setConnectModalInitialId] = useState("instagram");
   const [isN8NModalOpen, setIsN8NModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // Modal Controllers
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -381,6 +386,7 @@ export default function App() {
         setActiveSubTabAnalytics={setActiveSubTabAnalytics}
         currentProfile={currentUser || { username: '', avatar: '', email: '' }}
         onOpenN8NModal={() => setIsN8NModalOpen(true)}
+        onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onLogout={handleLogout}
         onGoToLanding={() => setViewMode('landing')}
       />
@@ -414,113 +420,132 @@ export default function App() {
                   <h3 className="text-lg font-bold text-gray-900">Lista Geral de Publicações Agendadas</h3>
                   <button
                     onClick={() => handleOpenCreateModal()}
-                    className="px-4 py-2 bg-[#2a1b15] text-amber-100 text-xs font-bold rounded-xl shadow hover:bg-gray-800"
+                    className="px-4 py-2 bg-[#2a1b15] text-amber-100 text-xs font-bold rounded-xl shadow hover:bg-gray-800 cursor-pointer"
                   >
                     + Criar publicação
                   </button>
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {posts.map(post => (
-                    <div key={post.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex gap-4 items-center shadow-xs">
-                      {post.mediaUrl && (
-                        <img src={post.mediaUrl} className="w-16 h-16 rounded-xl object-cover border border-gray-100 shrink-0" referrerPolicy="no-referrer" />
-                      )}
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {post.platforms.map(p => (
-                            <span key={p} className="text-[10px] font-bold px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md uppercase">
-                              {p}
-                            </span>
-                          ))}
-                          
-                          {/* Destinations mini badges */}
-                          {post.destinations && post.destinations.length > 0 && (
-                            <div className="flex gap-1">
-                              {post.destinations.map(dest => (
-                                <span key={dest} className="text-[9px] bg-pink-50 text-pink-600 border border-pink-100 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                  {dest === 'feed' ? 'Feed' : 'Story'}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-
-                          <span className="text-xs font-semibold text-gray-400 font-mono">
-                            {post.date} às {post.time}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-800 font-medium line-clamp-2">{post.caption}</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEditPost(post)}
-                          className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDeletePost(post.id)}
-                          className="px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-100 rounded-lg text-xs font-semibold text-red-600"
-                        >
-                          Excluir
-                        </button>
-                      </div>
+                  {posts.length === 0 ? (
+                    <div className="text-center py-12 bg-white rounded-2xl border border-gray-200">
+                      <p className="text-sm font-semibold text-gray-500">Nenhuma publicação agendada no momento.</p>
+                      <button
+                        onClick={() => handleOpenCreateModal()}
+                        className="mt-3 px-4 py-2 bg-pink-600 text-white text-xs font-bold rounded-xl"
+                      >
+                        Agendar Primeiro Post
+                      </button>
                     </div>
-                  ))}
+                  ) : (
+                    posts.map(post => (
+                      <div key={post.id} className="bg-white p-4 rounded-2xl border border-gray-100 flex gap-4 items-center shadow-xs">
+                        {post.mediaUrl && (
+                          <img src={post.mediaUrl} className="w-16 h-16 rounded-xl object-cover border border-gray-100 shrink-0" referrerPolicy="no-referrer" />
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {post.platforms.map(p => (
+                              <span key={p} className="text-[10px] font-bold px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md uppercase">
+                                {p}
+                              </span>
+                            ))}
+                            
+                            {/* Destinations mini badges */}
+                            {post.destinations && post.destinations.length > 0 && (
+                              <div className="flex gap-1">
+                                {post.destinations.map(dest => (
+                                  <span key={dest} className="text-[9px] bg-pink-50 text-pink-600 border border-pink-100 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                    {dest === 'feed' ? 'Feed' : 'Story'}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            <span className="text-xs font-semibold text-gray-400 font-mono">
+                              {post.date} às {post.time}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-800 font-medium line-clamp-2">{post.caption}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditPost(post)}
+                            className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 cursor-pointer"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDeletePost(post.id)}
+                            className="px-3 py-1.5 bg-red-50 hover:bg-red-100 border border-red-100 rounded-lg text-xs font-semibold text-red-600 cursor-pointer"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
 
             {activeSubTabCalendar === 'biblioteca' && (
-              <div className="p-4 md:p-8 flex-1 bg-gray-50 flex flex-col gap-6 animate-in fade-in duration-200">
-                <div className="border-b border-gray-200 pb-4">
-                  <h3 className="text-lg font-bold text-gray-900">Biblioteca de Mídias e Modelos</h3>
-                  <p className="text-xs text-gray-400 mt-1">Armazene criativos e reutilize legendas e roteiros de reels populares.</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {initialPosts.map((p, i) => (
-                    <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-xs flex flex-col">
-                      {p.mediaUrl && <img src={p.mediaUrl} className="h-44 w-full object-cover" referrerPolicy="no-referrer" />}
-                      <div className="p-4 flex flex-col justify-between flex-1 gap-4">
-                        <p className="text-xs text-gray-600 line-clamp-3 leading-relaxed font-medium">"{p.caption}"</p>
-                        <button
-                          onClick={() => {
-                            setEditingPost({
-                              id: `post-${Date.now()}`,
-                              caption: p.caption,
-                              platforms: ['instagram', 'tiktok'],
-                              date: getWeekdayDate(1),
-                              time: '10:00',
-                              mediaUrl: p.mediaUrl,
-                              mediaType: p.mediaType || 'video',
-                              status: 'draft'
-                            });
-                            setIsModalOpen(true);
-                          }}
-                          className="w-full py-2 bg-pink-50 hover:bg-pink-100 text-pink-700 font-bold text-xs rounded-xl transition-all"
-                        >
-                          Usar este modelo
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <MediaLibraryManager
+                onUseTemplate={(tplData) => {
+                  setEditingPost({
+                    id: `post-${Date.now()}`,
+                    caption: tplData.caption || '',
+                    platforms: tplData.platforms || ['instagram', 'tiktok'],
+                    destinations: tplData.destinations || ['feed', 'story'],
+                    date: getWeekdayDate(1),
+                    time: '10:00',
+                    mediaUrl: tplData.mediaUrl,
+                    mediaType: tplData.mediaType || 'video',
+                    status: 'draft'
+                  });
+                  setIsModalOpen(true);
+                }}
+                showNotification={(text, type) => {
+                  setNotification({ text, type });
+                  setTimeout(() => setNotification(null), 3000);
+                }}
+              />
             )}
 
             {activeSubTabCalendar === 'autolistas' && (
-              <div className="p-4 md:p-8 flex-1 bg-gray-50 flex flex-col items-center justify-center min-h-[400px] animate-in fade-in duration-200">
-                <div className="max-w-md text-center p-6 bg-white border border-gray-100 rounded-3xl shadow-xs flex flex-col items-center gap-4">
-                  <span className="p-3 bg-gradient-to-tr from-pink-500/10 to-purple-600/10 text-pink-500 rounded-2xl text-xl">🚀</span>
-                  <h3 className="text-base font-bold text-gray-900">Autolistas Recorrentes</h3>
-                  <p className="text-xs text-gray-500 leading-normal">
-                    As autolistas permitem criar filas automáticas de postagens semanais ou diárias sem precisar agendar manualmente cada horário no calendário.
-                  </p>
-                  <button className="px-4 py-2 bg-pink-600 text-white font-semibold text-xs rounded-xl shadow hover:bg-pink-700">
-                    Criar primeira Autolista
-                  </button>
-                </div>
-              </div>
+              <AutoListsManager
+                onSchedulePost={(newPost) => {
+                  setPosts(prev => [newPost, ...prev]);
+                }}
+                showNotification={(text, type) => {
+                  setNotification({ text, type });
+                  setTimeout(() => setNotification(null), 3000);
+                }}
+              />
+            )}
+
+            {activeSubTabCalendar === 'transcritor' && (
+              <VideoTranscriberRemix
+                onSchedulePost={(postData) => {
+                  setEditingPost({
+                    id: `post-${Date.now()}`,
+                    caption: postData.caption || '',
+                    platforms: postData.platforms || ['instagram', 'tiktok'],
+                    destinations: ['feed', 'story'],
+                    date: getWeekdayDate(1),
+                    time: '19:00',
+                    mediaUrl: postData.mediaUrl,
+                    mediaType: postData.mediaType || 'video',
+                    status: 'draft',
+                    bestTimeScore: 96
+                  });
+                  setIsModalOpen(true);
+                }}
+                showNotification={(text, type) => {
+                  setNotification({ text, type });
+                  setTimeout(() => setNotification(null), 3000);
+                }}
+              />
             )}
           </>
         )}
@@ -563,6 +588,33 @@ export default function App() {
       {isN8NModalOpen && (
         <N8NWorkflowModal
           onClose={() => setIsN8NModalOpen(false)}
+        />
+      )}
+
+      {/* Profile and Settings Modal */}
+      {isSettingsModalOpen && (
+        <ProfileSettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
+          currentUser={currentUser || defaultUser}
+          onUpdateProfile={(updated) => {
+            const newUser = {
+              username: updated.username,
+              email: updated.email || "g2midiasoficial@gmail.com",
+              avatar: updated.avatar
+            };
+            setCurrentUser(newUser);
+            localStorage.setItem("socialflow_user", JSON.stringify(newUser));
+          }}
+          posts={posts}
+          channels={channels}
+          onImportPosts={(imported) => {
+            setPosts(imported);
+          }}
+          showNotification={(text, type) => {
+            setNotification({ text, type });
+            setTimeout(() => setNotification(null), 3000);
+          }}
         />
       )}
 
