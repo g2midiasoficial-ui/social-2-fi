@@ -23,13 +23,18 @@ import {
   Wand2,
   Film,
   Save,
-  CheckCircle2
+  CheckCircle2,
+  Upload,
+  Download,
+  Maximize2,
+  Edit3,
+  Share2
 } from "lucide-react";
 
 export interface MediaTemplate {
   id: string;
   title: string;
-  category: 'reels' | 'carrossel' | 'copy' | 'quote' | 'oferta';
+  category: 'reels' | 'carrossel' | 'copy' | 'quote' | 'oferta' | 'minhas_publicacoes' | string;
   categoryLabel: string;
   caption: string;
   mediaUrl?: string; // Direct media or video link
@@ -38,11 +43,18 @@ export interface MediaTemplate {
   mediaType: 'image' | 'video';
   tags: string[];
   engagementTip: string;
+  originalPostId?: string;
+  status?: string;
+  postDate?: string;
+  postTime?: string;
 }
 
 interface MediaLibraryManagerProps {
   onUseTemplate: (postData: Partial<SocialPost>) => void;
   showNotification: (msg: string, type: 'success' | 'info') => void;
+  savedPosts?: SocialPost[];
+  onEditPost?: (post: SocialPost) => void;
+  onDeletePost?: (postId: string) => void;
 }
 
 // SVG Cover Generators for Instagram, TikTok and Direct Video when hosted on Vercel/production
@@ -221,7 +233,7 @@ export function parseMediaUrl(inputUrl: string): {
   if (instaMatch && instaMatch[1]) {
     const shortcode = instaMatch[1];
     return {
-      thumbnailUrl: '', // Let async extract-meta fetch real photo
+      thumbnailUrl: '',
       videoUrl: trimmed,
       mediaType: 'video',
       source: 'instagram',
@@ -234,7 +246,7 @@ export function parseMediaUrl(inputUrl: string): {
   // 4. TikTok
   if (/tiktok\.com/i.test(trimmed)) {
     return {
-      thumbnailUrl: '', // Let async extract-meta fetch real photo
+      thumbnailUrl: '',
       videoUrl: trimmed,
       mediaType: 'video',
       source: 'tiktok',
@@ -279,155 +291,149 @@ const INITIAL_TEMPLATES: MediaTemplate[] = [
     title: "🔥 Roteiro Viral: 'Os 3 Maiores Erros'",
     category: "reels",
     categoryLabel: "Reels / Vídeo",
-    caption: "A maioria das pessoas falha nisso logo no começo:\n\n❌ Erro 1: Querer perfeição antes da consistência.\n❌ Erro 2: Ignorar os 3 primeiros segundos de retenção.\n❌ Erro 3: Não ter uma chamada clara para ação.\n\nQual desses você mais comete hoje? Comenta aqui embaixo! 👇🎯",
-    mediaUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    thumbnailUrl: "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    caption: `🚨 3 ERROS QUE ESTÃO DESTRUINDO SEU ENGAJAMENTO (E como corrigir hoje mesmo!)\n\n1. Começar o vídeo dizendo "Oi pessoal tudo bem" (perde 70% da retenção nos 2 primeiros segundos)\n2. Não legendar seu vídeo (mais de 65% das pessoas assistem sem som)\n3. Esquecer de fazer uma chamada para ação clara (CTA) no final.\n\n👉 Salve este post para consultar quando for gravar seus próximos vídeos! Qual desses erros você mais cometia? Comente aqui embaixo! 👇`,
+    mediaUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&h=1200&fit=crop",
+    thumbnailUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&h=1200&fit=crop",
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-light-1230-large.mp4",
     mediaType: "video",
-    tags: ["viral", "reels", "dicas", "crescimento"],
-    engagementTip: "Use cortes rápidos a cada 2.5 segundos para maximizar a taxa de retenção do algoritmo."
+    tags: ["reels", "viral", "engajamento", "dicas", "crescimento"],
+    engagementTip: "Grave olhando direto para a lente e mude o ângulo a cada 4 segundos para reter atenção."
   },
   {
     id: "tpl-2",
-    title: "📊 Carrossel Educativo: 'Passo a Passo Prático'",
+    title: "📊 Carrossel Educativo: 'Checklist do Perfil Magnético'",
     category: "carrossel",
     categoryLabel: "Carrossel",
-    caption: "Como estruturar um funil de conteúdo que vende no automático:\n\n1️⃣ Topo: Atração com curiosidade e novidade.\n2️⃣ Meio: Autoridade e quebra de objeções.\n3️⃣ Fundo: Oferta direta com prova social.\n\nSalve este post para consultar quando for criar seu próximo lançamento! 💾✨",
-    mediaUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=800&fit=crop",
-    thumbnailUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=800&fit=crop",
+    caption: `Transforme visitantes em seguidores fiéis com este checklist prático:\n\n✅ Foto de perfil com contraste alto e rosto nítido\n✅ Nome de usuário fácil de lembrar e sem símbolos estranhos\n✅ Biografia clara: O que você faz + Para quem + Prova social\n✅ Link na bio direcionado para sua oferta principal\n✅ Destaques organizados com capas padronizadas\n\nArrasta para o lado ➡️ para ver exemplos reais de cada item aplicado!`,
+    mediaUrl: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&h=1000&fit=crop",
+    thumbnailUrl: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&h=1000&fit=crop",
     mediaType: "image",
-    tags: ["carrossel", "educativo", "vendas", "marketing"],
-    engagementTip: "Adicione uma seta indicativa no canto inferior direito para estimular o arrastar para o lado."
+    tags: ["carrossel", "estrategia", "branding", "instagram", "perfil"],
+    engagementTip: "Carrosséis de 6 a 8 lâminas geram 3x mais salvamentos e compartilhamentos."
   },
   {
     id: "tpl-3",
-    title: "⚡ Quebra de Padrão: 'Pare de Fazer Isso'",
-    category: "reels",
-    categoryLabel: "Reels / Vídeo",
-    caption: "Pare de perder tempo com estratégias que funcionavam em 2021! 🛑\n\nO digital mudou e hoje quem não investe em storytelling e conexão humana é simplesmente ignorado no feed. Você concorda ou discorda? Deixe sua visão sincera nos comentários. 💬",
-    mediaUrl: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-talking-on-video-call-with-a-laptop-42999-large.mp4",
-    thumbnailUrl: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=600&h=800&fit=crop",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-talking-on-video-call-with-a-laptop-42999-large.mp4",
-    mediaType: "video",
-    tags: ["polêmica", "opinião", "storytelling", "autoridade"],
-    engagementTip: "Perguntas de 'concorda ou discorda' geram até 3x mais comentários de debate."
+    title: "🎯 Oferta Direta: 'A Oportunidade que Você Estava Esperando'",
+    category: "oferta",
+    categoryLabel: "Oferta & Vendas",
+    caption: `💥 AS VAGAS ESTÃO OFICIALMENTE ABERTAS!\n\nSe você quer dominar a criação de conteúdo e multiplicar seu alcance em 30 dias sem passar horas quebrando a cabeça:\n\n🚀 Acesso imediato a todos os módulos práticos\n🎁 Bônus: Pack com +100 roteiros validados e prontos para gravar\n⚡ Suporte direto para tirar dúvidas\n\n⚠️ Condição especial válida apenas para os 20 primeiros. Link no perfil para garantir sua vaga antes que esgote!`,
+    mediaUrl: "https://images.unsplash.com/photo-1556742049-0a67e5572263?w=800&h=1000&fit=crop",
+    thumbnailUrl: "https://images.unsplash.com/photo-1556742049-0a67e5572263?w=800&h=1000&fit=crop",
+    mediaType: "image",
+    tags: ["oferta", "vendas", "lancamento", "copywriting", "conversao"],
+    engagementTip: "Use senso de urgência real e direcione sempre para um link único e direto."
   },
   {
     id: "tpl-4",
-    title: "🎯 Oferta Direta: 'Últimas Vagas / Lançamento'",
-    category: "oferta",
-    categoryLabel: "Oferta & Lançamento",
-    caption: "As inscrições para a nova turma estão oficialmente ABERTAS! 🚀\n\nMas atenção: restam apenas algumas vagas com a condição especial de lançamento. Se você quer transformar seus resultados e ter meu acompanhamento de perto, digite 'EU QUERO' no direct ou acesse o link da bio agora mesmo! ⏳🔥",
-    mediaUrl: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=600&h=800&fit=crop",
-    thumbnailUrl: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=600&h=800&fit=crop",
+    title: "☕ Frase de Impacto / Storytelling Inspiracional",
+    category: "quote",
+    categoryLabel: "Inspiração",
+    caption: `"Consistência não é sobre nunca falhar. É sobre nunca desistir nos dias em que tudo parece difícil."\n\nLembre-se: quem você vê no topo hoje começou exatamente onde você está agora. Continue postando, continue aprendendo e não pare.\n\nQual frase mais te inspira a continuar todos os dias? Compartilhe com um amigo que precisa ler isso hoje! ❤️`,
+    mediaUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&h=1000&fit=crop",
+    thumbnailUrl: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=800&h=1000&fit=crop",
     mediaType: "image",
-    tags: ["lançamento", "vendas", "conversão", "urgência"],
-    engagementTip: "Use palavras-chave automáticas como 'EU QUERO' para integrar com o n8n ou ManyChat."
+    tags: ["inspiracao", "mindset", "motivacao", "rotina", "empreendedorismo"],
+    engagementTip: "Quotes em imagens clean com fontes elegantes geram altos compartilhamentos nos Stories."
   },
   {
     id: "tpl-5",
-    title: "☕ Conexão & Mentalidade de Segunda-Feira",
-    category: "quote",
-    categoryLabel: "Inspiração / Quote",
-    caption: "Não espere a motivação chegar para agir. É a ação disciplinada que gera o entusiasmo e os resultados que você procura. Que sua semana seja de foco inabalável e muitas conquistas! Bom dia! ☀️☕",
-    mediaUrl: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=600&h=800&fit=crop",
-    thumbnailUrl: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=600&h=800&fit=crop",
-    mediaType: "image",
-    tags: ["motivação", "lifestyle", "segunda-feira", "conexão"],
-    engagementTip: "Ideal para publicar cedo (entre 07:30 e 09:00) para pegar a rotina matinal da sua audiência."
-  },
-  {
-    id: "tpl-6",
-    title: "🎬 Bastidores: 'O Processo por Trás do Resultado'",
+    title: "🎬 Reels Dinâmico: 'O Bastidor Que Ninguém Te Mostra'",
     category: "reels",
     categoryLabel: "Reels / Vídeo",
-    caption: "Ninguém vê os rascunhos apagados, as noites de estudo e os testes que deram errado antes do sucesso. O processo é real e desafiador, mas cada etapa vale a pena. Mostrando um pouco dos bastidores de hoje! 💻🎥",
-    mediaUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-man-typing-on-a-laptop-keyboard-41126-large.mp4",
-    thumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&h=800&fit=crop",
-    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-man-typing-on-a-laptop-keyboard-41126-large.mp4",
+    caption: `👀 A REALIDADE DOS BASTIDORES:\n\nNa internet tudo parece perfeito e fácil, mas a verdade é que por trás de cada resultado existe muito teste, muito erro e muita resiliência.\n\nNeste vídeo te mostro exatamente a rotina de produção e como organizo meu calendário de postagens em 2 horas por semana.\n\nDeixe um 🚀 se você também valoriza o trabalho duro dos bastidores!`,
+    mediaUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1200&fit=crop",
+    thumbnailUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800&h=1200&fit=crop",
+    videoUrl: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-vlogger-recording-video-content-41315-large.mp4",
     mediaType: "video",
-    tags: ["bastidores", "vulnerabilidade", "autenticidade"],
-    engagementTip: "Vídeos sem muita edição com áudio em alta transmitem maior sensação de proximidade e verdade."
+    tags: ["bastidores", "autenticidade", "rotina", "reels", "storytelling"],
+    engagementTip: "Vídeos de bastidores humanizam sua marca e geram conexão emocional imediata."
   }
 ];
 
 const SAMPLE_VIDEO_LINKS = [
   {
-    label: "Instagram Reels Exemplo",
+    label: "Reels Tendência (Instagram)",
     url: "https://www.instagram.com/reel/C2i9h-rrZlP/",
-    title: "Reels de Exemplo",
+    title: "Reels Estratégia de Conteúdo",
     category: "reels"
   },
   {
-    label: "TikTok Vídeo Exemplo",
+    label: "TikTok Viral Trends",
     url: "https://www.tiktok.com/@tiktok/video/7106594312292453678",
-    title: "Tendência Viral do TikTok",
+    title: "TikTok Trends & Áudios",
     category: "reels"
   },
   {
-    label: "YouTube Shorts / Vídeo",
-    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    title: "Shorts de Exemplo",
-    category: "reels"
-  },
-  {
-    label: "Vídeo MP4 Direto",
-    url: "https://assets.mixkit.co/videos/preview/mixkit-hands-of-a-man-typing-on-a-laptop-keyboard-41126-large.mp4",
-    title: "Tutorial de Produtividade",
+    label: "YouTube Shorts Tutorial",
+    url: "https://www.youtube.com/shorts/aqz-KE-bpKQ",
+    title: "Tutorial Rápido em Shorts",
     category: "reels"
   }
 ];
 
-export default function MediaLibraryManager({ onUseTemplate, showNotification }: MediaLibraryManagerProps) {
+export default function MediaLibraryManager({
+  onUseTemplate,
+  showNotification,
+  savedPosts = [],
+  onEditPost,
+  onDeletePost
+}: MediaLibraryManagerProps) {
   const [templates, setTemplates] = useState<MediaTemplate[]>(() => {
     const saved = localStorage.getItem("socialflow_media_library");
     if (saved) {
       try {
-        return JSON.parse(saved);
-      } catch (e) {}
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (_) {}
     }
     return INITIAL_TEMPLATES;
   });
 
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  
-  // Video player modal state
-  const [activeVideoModal, setActiveVideoModal] = useState<MediaTemplate | null>(null);
+  const [addModalTab, setAddModalTab] = useState<'link' | 'upload'>('link');
 
-  // Quick link state
+  // New Template Inputs
+  const [newTitle, setNewTitle] = useState("");
+  const [newCategory, setNewCategory] = useState<'reels' | 'carrossel' | 'copy' | 'quote' | 'oferta' | 'minhas_publicacoes'>('reels');
+  const [newCaption, setNewCaption] = useState("");
+  const [newMediaUrl, setNewMediaUrl] = useState("");
+  const [newCustomThumbnail, setNewCustomThumbnail] = useState("");
+  const [newTags, setNewTags] = useState("viral, reels, tendencias");
+  const [newTip, setNewTip] = useState("");
+  const [newMediaType, setNewMediaType] = useState<'image' | 'video'>('video');
+
+  // Video and Image Lightbox Modal States
+  const [activeVideoModal, setActiveVideoModal] = useState<MediaTemplate | null>(null);
+  const [activeImageLightbox, setActiveImageLightbox] = useState<{ url: string; title: string } | null>(null);
+
+  // Live Extraction States for Video Link
+  const [isFetchingMeta, setIsFetchingMeta] = useState(false);
+  const [serverThumbnail, setServerThumbnail] = useState("");
+  const [serverEmbedUrl, setServerEmbedUrl] = useState("");
+  const [extractedInfo, setExtractedInfo] = useState<ReturnType<typeof parseMediaUrl>>({
+    thumbnailUrl: '',
+    videoUrl: '',
+    mediaType: 'video',
+    source: 'unknown',
+    sourceLabel: ''
+  });
+
+  // Top Bar Quick Link
   const [quickLink, setQuickLink] = useState("");
   const [isQuickSaving, setIsQuickSaving] = useState(false);
 
-  // Form states for new template in modal
-  const [newTitle, setNewTitle] = useState("");
-  const [newCategory, setNewCategory] = useState<'reels' | 'carrossel' | 'copy' | 'quote' | 'oferta'>('reels');
-  const [newCaption, setNewCaption] = useState("");
-  const [newMediaUrl, setNewMediaUrl] = useState("https://www.instagram.com/reel/C2i9h-rrZlP/");
-  const [newCustomThumbnail, setNewCustomThumbnail] = useState("");
-  const [newMediaType, setNewMediaType] = useState<'image' | 'video'>('video');
-  const [newTags, setNewTags] = useState("viral, reels, video, capa");
-  const [newTip, setNewTip] = useState("");
-
-  // Extracted cover analysis state in modal
-  const [extractedInfo, setExtractedInfo] = useState(() => parseMediaUrl(newMediaUrl));
-  const [serverThumbnail, setServerThumbnail] = useState<string>("");
-  const [isFetchingMeta, setIsFetchingMeta] = useState(false);
-  const [serverEmbedUrl, setServerEmbedUrl] = useState<string>("");
-
-  // Sync templates from server on mount
+  // Sync templates with Firestore & localStorage
   useEffect(() => {
     fetch("/api/media-templates")
       .then(res => res.json())
       .then(data => {
-        if (data.success && Array.isArray(data.templates) && data.templates.length > 0) {
+        if (data && data.templates && Array.isArray(data.templates) && data.templates.length > 0) {
           setTemplates(prev => {
             const map = new Map<string, MediaTemplate>();
-            // Add server templates
             data.templates.forEach((t: MediaTemplate) => map.set(t.id, t));
-            // Add local templates if not present
             prev.forEach(t => {
               if (!map.has(t.id)) map.set(t.id, t);
             });
@@ -441,6 +447,44 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
         console.warn("Could not sync media templates from server:", err);
       });
   }, []);
+
+  // Sync saved posts from calendar/scheduler into media library
+  useEffect(() => {
+    if (savedPosts && savedPosts.length > 0) {
+      setTemplates(prev => {
+        const map = new Map<string, MediaTemplate>();
+        prev.forEach(t => map.set(t.id, t));
+
+        savedPosts.forEach(post => {
+          const tplId = `post-tpl-${post.id}`;
+          if (!map.has(tplId) && (post.mediaUrl || post.caption)) {
+            const resolvedThumb = post.mediaUrl || resolveCoverImage({ title: post.caption?.slice(0, 30) || 'Publicação' });
+            map.set(tplId, {
+              id: tplId,
+              originalPostId: post.id,
+              title: (post.caption ? post.caption.slice(0, 45) : 'Publicação Criada') + (post.caption && post.caption.length > 45 ? '...' : ''),
+              category: 'minhas_publicacoes',
+              categoryLabel: 'Minha Publicação',
+              caption: post.caption || '',
+              mediaUrl: post.mediaUrl || '',
+              thumbnailUrl: resolvedThumb,
+              videoUrl: post.mediaType === 'video' ? post.mediaUrl : '',
+              mediaType: post.mediaType || 'video',
+              tags: ['minha-publicacao', ...(post.platforms || [])],
+              engagementTip: `Publicação programada para ${post.date} às ${post.time}.`,
+              status: post.status,
+              postDate: post.date,
+              postTime: post.time
+            });
+          }
+        });
+
+        const merged = Array.from(map.values());
+        localStorage.setItem("socialflow_media_library", JSON.stringify(merged));
+        return merged;
+      });
+    }
+  }, [savedPosts]);
 
   // Extract real cover from backend for Instagram, TikTok, YouTube etc.
   useEffect(() => {
@@ -506,16 +550,20 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
   };
 
   const categories = [
-    { id: 'all', label: 'Todos os Modelos' },
+    { id: 'all', label: 'Todos os Modelos & Capas' },
+    { id: 'minhas_publicacoes', label: '📌 Minhas Publicações' },
     { id: 'reels', label: '🎬 Reels & Vídeos' },
-    { id: 'carrossel', label: '📊 Carrosséis' },
+    { id: 'carrossel', label: '📊 Carrosséis & Fotos' },
     { id: 'copy', label: '⚡ Copies Virais' },
     { id: 'oferta', label: '🎯 Ofertas & Vendas' },
     { id: 'quote', label: '☕ Inspiração' }
   ];
 
   const filteredTemplates = templates.filter(tpl => {
-    const matchesCategory = selectedCategory === 'all' || tpl.category === selectedCategory;
+    const matchesCategory = 
+      selectedCategory === 'all' || 
+      (selectedCategory === 'minhas_publicacoes' ? (tpl.category === 'minhas_publicacoes' || tpl.id.startsWith('post-tpl-')) : tpl.category === selectedCategory);
+    
     const matchesSearch = 
       tpl.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tpl.caption.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -543,6 +591,61 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
       status: 'draft'
     });
     showNotification("Modelo e capa carregados no Agendador de Posts!", "success");
+  };
+
+  // Manual trigger to sync all scheduled posts into templates
+  const handleManualSyncPosts = () => {
+    let postsToSync = savedPosts;
+    if (!postsToSync || postsToSync.length === 0) {
+      try {
+        const raw = localStorage.getItem("socialflow_posts");
+        if (raw) postsToSync = JSON.parse(raw);
+      } catch (_) {}
+    }
+
+    if (!postsToSync || postsToSync.length === 0) {
+      showNotification("Nenhuma publicação agendada encontrada no momento.", "info");
+      return;
+    }
+
+    const map = new Map<string, MediaTemplate>();
+    templates.forEach(t => map.set(t.id, t));
+
+    let addedCount = 0;
+    postsToSync.forEach(post => {
+      const tplId = `post-tpl-${post.id}`;
+      const resolvedThumb = post.mediaUrl || resolveCoverImage({ title: post.caption?.slice(0, 30) || 'Publicação' });
+      const item: MediaTemplate = {
+        id: tplId,
+        originalPostId: post.id,
+        title: (post.caption ? post.caption.slice(0, 45) : 'Publicação Salva') + (post.caption && post.caption.length > 45 ? '...' : ''),
+        category: 'minhas_publicacoes',
+        categoryLabel: 'Minha Publicação',
+        caption: post.caption || '',
+        mediaUrl: post.mediaUrl || '',
+        thumbnailUrl: resolvedThumb,
+        videoUrl: post.mediaType === 'video' ? post.mediaUrl : '',
+        mediaType: post.mediaType || 'video',
+        tags: ['minha-publicacao', ...(post.platforms || [])],
+        engagementTip: `Publicação agendada para ${post.date} às ${post.time}.`,
+        status: post.status,
+        postDate: post.date,
+        postTime: post.time
+      };
+      if (!map.has(tplId)) addedCount++;
+      map.set(tplId, item);
+
+      // Async save to server
+      fetch("/api/media-templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item)
+      }).catch(() => {});
+    });
+
+    const merged = Array.from(map.values());
+    saveTemplates(merged);
+    showNotification(`✓ ${postsToSync.length} capas de publicações sincronizadas com sucesso!`, "success");
   };
 
   // Quick Save directly from top bar
@@ -574,7 +677,6 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
     const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
 
     const titleText = autoTitle || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Vídeo & Capa Salvo") + ` #${templates.length + 1}`;
-
     const resolvedThumbnail = finalThumb || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: titleText });
 
     const newTpl: MediaTemplate = {
@@ -606,30 +708,53 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
     showNotification("Vídeo e capa salvos com sucesso na biblioteca!", "success");
   };
 
+  // Upload custom file in modal
+  const handleUploadImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const dataUrl = uploadEvent.target?.result as string;
+      if (!dataUrl) return;
+      setNewCustomThumbnail(dataUrl);
+      setNewMediaUrl(dataUrl);
+      setNewMediaType('image');
+      if (!newTitle) {
+        setNewTitle(`Capa: ${file.name.replace(/\.[^/.]+$/, "")}`);
+      }
+      showNotification("Imagem de capa carregada com sucesso!", "success");
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCreateTemplate = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanUrl = newMediaUrl.trim();
-    if (!cleanUrl) {
-      showNotification("Por favor, cole um link de vídeo.", "info");
+    const cleanThumb = newCustomThumbnail.trim();
+
+    if (!cleanUrl && !cleanThumb) {
+      showNotification("Por favor, selecione uma imagem ou cole um link de vídeo.", "info");
       return;
     }
 
     const categoryLabels: Record<string, string> = {
       reels: 'Reels / Vídeo',
-      carrossel: 'Carrossel',
+      carrossel: 'Carrossel / Foto',
       copy: 'Modelo de Copy',
       quote: 'Inspiração / Quote',
-      oferta: 'Oferta & Lançamento'
+      oferta: 'Oferta & Lançamento',
+      minhas_publicacoes: 'Minha Publicação'
     };
 
     const isIg = /instagram\.com/i.test(cleanUrl);
     const isTt = /tiktok\.com/i.test(cleanUrl);
     const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
 
-    const autoTitle = newTitle.trim() || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Vídeo & Capa Salvo") + ` #${templates.length + 1}`;
-    const autoCaption = newCaption.trim() || `Vídeo salvo na biblioteca (${extractedInfo.sourceLabel}).\n\nUse este formato para engajar seus seguidores com alto valor! 🚀\n\n#${newCategory} #viral #conteudo`;
+    const autoTitle = newTitle.trim() || (cleanThumb ? "Capa Personalizada Salva" : isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Capa & Vídeo Salvo") + ` #${templates.length + 1}`;
+    const autoCaption = newCaption.trim() || `Publicação salva na biblioteca.\n\nUse este formato para engajar seus seguidores com alto valor! 🚀\n\n#${newCategory} #viral #conteudo`;
 
-    const finalThumbnail = newCustomThumbnail.trim() || serverThumbnail || extractedInfo.thumbnailUrl || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: autoTitle });
+    const finalThumbnail = cleanThumb || serverThumbnail || extractedInfo.thumbnailUrl || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: autoTitle });
 
     const newTpl: MediaTemplate = {
       id: `tpl-${Date.now()}`,
@@ -637,9 +762,9 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
       category: newCategory,
       categoryLabel: categoryLabels[newCategory] || 'Geral',
       caption: autoCaption,
-      mediaUrl: cleanUrl,
+      mediaUrl: cleanUrl || finalThumbnail,
       thumbnailUrl: finalThumbnail,
-      videoUrl: extractedInfo.videoUrl || cleanUrl,
+      videoUrl: newMediaType === 'video' ? (extractedInfo.videoUrl || cleanUrl) : '',
       mediaType: newMediaType,
       tags: newTags.split(',').map(t => t.trim()).filter(Boolean),
       engagementTip: newTip.trim() || "Grave com gancho nos 3 primeiros segundos para maximizar o algoritmo."
@@ -666,10 +791,10 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
     setServerThumbnail("");
     setServerEmbedUrl("");
 
-    showNotification("Vídeo e capa salvos com sucesso na biblioteca!", "success");
+    showNotification("Capa e publicação salvas com sucesso na biblioteca!", "success");
   };
 
-  // Upload custom thumbnail directly to a card
+  // Upload custom thumbnail directly to an existing card
   const handleUploadCustomCoverForCard = (tplId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -681,7 +806,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
 
       const updated = templates.map(t => {
         if (t.id === tplId) {
-          const mod = { ...t, thumbnailUrl: dataUrl };
+          const mod = { ...t, thumbnailUrl: dataUrl, mediaUrl: dataUrl };
           fetch("/api/media-templates", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -702,7 +827,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
     const updated = templates.filter(t => t.id !== id);
     saveTemplates(updated);
     fetch(`/api/media-templates/${id}`, { method: "DELETE" }).catch(() => {});
-    showNotification("Modelo removido da biblioteca.", "info");
+    showNotification("Item removido da biblioteca.", "info");
   };
 
   return (
@@ -714,21 +839,21 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-gray-900 tracking-tight">Biblioteca de Publicações, Vídeos & Capas</h2>
             <span className="bg-pink-100 text-pink-700 text-[10px] uppercase font-black px-2.5 py-0.5 rounded-full">
-              {templates.length} Itens
+              {templates.length} Capas & Modelos
             </span>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Cole links de <strong>Instagram Reels, TikTok, YouTube ou MP4</strong> para ver o vídeo, extrair capa real e agendar em 1 clique.
+            Todas as <strong>capas de posts</strong>, vídeos do <strong>Instagram Reels, TikTok, YouTube</strong> ou imagens salvas em um só lugar.
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           {/* Search Input */}
-          <div className="relative flex-1 md:w-64">
+          <div className="relative flex-1 md:w-56">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Buscar modelos, vídeos ou tags..."
+              placeholder="Buscar capas ou posts..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-pink-500 font-medium"
@@ -736,16 +861,27 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
           </div>
 
           <button
+            onClick={handleManualSyncPosts}
+            className="px-3.5 py-2.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 text-xs font-bold rounded-xl shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer hover:border-pink-300"
+            title="Sincronizar todas as publicações criadas e agendadas para a biblioteca"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-pink-600" />
+            <span>Sincronizar Posts</span>
+          </button>
+
+          <button
             onClick={() => {
-              setNewMediaUrl("https://www.instagram.com/reel/C2i9h-rrZlP/");
+              setNewMediaUrl("");
+              setNewCustomThumbnail("");
               setNewTitle("");
               setNewCaption("");
+              setAddModalTab('link');
               setIsAddModalOpen(true);
             }}
-            className="px-4 py-2.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer shrink-0 hover:scale-105"
+            className="px-4 py-2.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer shrink-0 hover:scale-102"
           >
             <Plus className="w-4 h-4" />
-            <span>Adicionar Link de Vídeo / Post</span>
+            <span>Adicionar Capa / Vídeo</span>
           </button>
         </div>
       </div>
@@ -757,7 +893,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
             <LinkIcon className="w-4 h-4" />
           </div>
           <div>
-            <span className="text-xs font-black text-gray-900 block">Salvar Link Rápido de Vídeo</span>
+            <span className="text-xs font-black text-gray-900 block">Salvar Link Rápido com Capa</span>
             <span className="text-[10px] text-gray-500">Instagram Reels, TikTok, YouTube Shorts ou MP4</span>
           </div>
         </div>
@@ -779,7 +915,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
             className="px-4 py-2.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0 hover:scale-102"
           >
             {isQuickSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            <span>Salvar Link</span>
+            <span>Salvar Capa</span>
           </button>
         </form>
       </div>
@@ -790,13 +926,18 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
               selectedCategory === cat.id
                 ? 'bg-[#25172a] text-white shadow-xs'
                 : 'bg-white text-gray-600 border border-gray-200/80 hover:bg-gray-100'
             }`}
           >
-            {cat.label}
+            <span>{cat.label}</span>
+            {cat.id === 'minhas_publicacoes' && (
+              <span className="px-1.5 py-0.2 bg-pink-500 text-white rounded-full text-[9px] font-extrabold">
+                {templates.filter(t => t.category === 'minhas_publicacoes' || t.id.startsWith('post-tpl-')).length}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -805,10 +946,21 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
       {filteredTemplates.length === 0 ? (
         <div className="text-center py-16 bg-white border border-gray-200/80 rounded-3xl flex flex-col items-center gap-3">
           <FolderOpen className="w-10 h-10 text-gray-300" />
-          <h3 className="text-sm font-bold text-gray-800">Nenhum modelo ou vídeo encontrado</h3>
+          <h3 className="text-sm font-bold text-gray-800">Nenhuma capa ou publicação encontrada</h3>
           <p className="text-xs text-gray-400 max-w-sm">
-            Adicione um link de Instagram Reels, TikTok ou YouTube para salvar e assistir seus vídeos.
+            Adicione uma imagem de capa ou cole um link de Instagram Reels, TikTok ou YouTube para salvar.
           </p>
+          <button
+            onClick={() => {
+              setNewMediaUrl("");
+              setNewCustomThumbnail("");
+              setAddModalTab('upload');
+              setIsAddModalOpen(true);
+            }}
+            className="mt-2 px-4 py-2 bg-pink-600 text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer hover:bg-pink-700"
+          >
+            + Enviar Primeira Imagem de Capa
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -818,6 +970,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
             const coverImage = resolveCoverImage(tpl);
             const isInstagram = Boolean(tpl.videoUrl && /instagram\.com/i.test(tpl.videoUrl));
             const isTikTok = Boolean(tpl.videoUrl && /tiktok\.com/i.test(tpl.videoUrl));
+            const isUserPost = tpl.category === 'minhas_publicacoes' || tpl.id.startsWith('post-tpl-');
 
             return (
               <div 
@@ -825,8 +978,8 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                 className="bg-white rounded-3xl border border-gray-200/80 hover:border-pink-300 hover:shadow-lg transition-all flex flex-col overflow-hidden group"
               >
                 {/* Media Cover Preview Banner */}
-                <div className="relative h-56 w-full bg-gray-950 overflow-hidden flex items-center justify-center">
-                  {coverImage && !isDirectVideo ? (
+                <div className="relative h-60 w-full bg-gray-950 overflow-hidden flex items-center justify-center">
+                  {coverImage ? (
                     <img 
                       src={coverImage} 
                       alt={tpl.title}
@@ -858,29 +1011,21 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                     />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-tr from-[#25172a] via-purple-950 to-pink-950 flex flex-col items-center justify-center text-white p-4 text-center">
-                      {isInstagram ? (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <span className="p-2 rounded-2xl bg-gradient-to-tr from-yellow-500 via-pink-500 to-purple-600 shadow-md">
-                            <Film className="w-6 h-6 text-white" />
-                          </span>
-                          <span className="text-xs font-black text-white">Instagram Reels</span>
-                          <span className="text-[10px] text-pink-200">Clique para ver o vídeo</span>
-                        </div>
-                      ) : isTikTok ? (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <span className="p-2 rounded-2xl bg-black border border-gray-700 shadow-md">
-                            <Film className="w-6 h-6 text-cyan-400" />
-                          </span>
-                          <span className="text-xs font-black text-white">TikTok Vídeo</span>
-                          <span className="text-[10px] text-cyan-200">Clique para ver o vídeo</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-1">
-                          <Film className="w-8 h-8 opacity-60 text-pink-400" />
-                          <span className="text-xs font-bold">Pré-visualização de Vídeo</span>
-                        </div>
-                      )}
+                      <Film className="w-8 h-8 opacity-60 text-pink-400" />
+                      <span className="text-xs font-bold mt-1">Capa da Publicação</span>
                     </div>
+                  )}
+
+                  {/* Zoom Lightbox Trigger Button */}
+                  {coverImage && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveImageLightbox({ url: coverImage, title: tpl.title })}
+                      className="absolute bottom-2.5 right-2.5 p-2 rounded-xl bg-black/60 hover:bg-black/90 text-white backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-md cursor-pointer z-20"
+                      title="Ver Capa em Alta Resolução"
+                    >
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
                   )}
 
                   {/* Play Video Big Overlay Button */}
@@ -895,16 +1040,18 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                   )}
 
                   {/* Top Badges */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 z-20">
-                    <span className="px-2.5 py-1 bg-black/70 backdrop-blur-md text-white text-[10px] font-black rounded-lg uppercase tracking-wider">
-                      {tpl.categoryLabel}
+                  <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5 z-20">
+                    <span className={`px-2.5 py-1 text-white text-[10px] font-black rounded-lg uppercase tracking-wider ${
+                      isUserPost ? 'bg-purple-700 shadow-sm' : 'bg-black/70 backdrop-blur-md'
+                    }`}>
+                      {isUserPost ? '📌 Minha Publicação' : tpl.categoryLabel}
                     </span>
                     <span className={`px-2 py-1 text-white text-[10px] font-bold rounded-lg uppercase flex items-center gap-1 ${
                       isInstagram ? 'bg-gradient-to-r from-pink-500 to-purple-600' :
                       isTikTok ? 'bg-black border border-gray-700' : 'bg-pink-600'
                     }`}>
                       {tpl.mediaType === 'video' ? <VideoIcon className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
-                      <span>{isInstagram ? 'Reels' : isTikTok ? 'TikTok' : tpl.mediaType === 'video' ? 'Vídeo' : 'Foto'}</span>
+                      <span>{isInstagram ? 'Reels' : isTikTok ? 'TikTok' : tpl.mediaType === 'video' ? 'Vídeo' : 'Capa'}</span>
                     </span>
                   </div>
 
@@ -931,11 +1078,11 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                     </button>
                   </div>
 
-                  {/* Bottom link info */}
-                  {tpl.videoUrl && (
-                    <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between z-10">
-                      <span className="text-[10px] bg-black/80 backdrop-blur-md text-pink-300 font-mono font-medium px-2 py-0.5 rounded-md truncate max-w-[220px] flex items-center gap-1">
-                        <Play className="w-2.5 h-2.5 fill-pink-300" /> Clique em "Ver Vídeo"
+                  {/* Bottom link / date info */}
+                  {tpl.postDate && (
+                    <div className="absolute bottom-2 left-3 flex items-center gap-1 z-10">
+                      <span className="text-[10px] bg-black/80 backdrop-blur-md text-emerald-300 font-mono font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <Calendar className="w-2.5 h-2.5 text-emerald-300" /> {tpl.postDate} às {tpl.postTime || '10:00'}
                       </span>
                     </div>
                   )}
@@ -952,7 +1099,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                       "{tpl.caption}"
                     </p>
 
-                    {/* Growth & Engagement Tip */}
+                    {/* Engagement / Date Tip */}
                     <div className="flex items-start gap-1.5 text-[11px] text-amber-800 bg-amber-50/80 border border-amber-200/60 p-2.5 rounded-xl">
                       <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
                       <span><strong>Dica:</strong> {tpl.engagementTip}</span>
@@ -971,7 +1118,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                   {/* Primary & Secondary Actions Bar */}
                   <div className="flex flex-col gap-2 pt-3 border-t border-gray-100">
                     
-                    {/* Dedicated Watch Video Button */}
+                    {/* Watch Video Button */}
                     {hasVideo && (
                       <button
                         onClick={() => setActiveVideoModal(tpl)}
@@ -1018,7 +1165,7 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
         </div>
       )}
 
-      {/* MODAL: ADD NEW TEMPLATE WITH INSTANT VIDEO COVER EXTRACTION */}
+      {/* MODAL: ADD NEW TEMPLATE OR UPLOAD COVER IMAGE */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs">
           <div className="bg-white rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-gray-100 flex flex-col gap-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
@@ -1029,8 +1176,8 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                   <Film className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-gray-900">Salvar Vídeo & Capa na Biblioteca</h3>
-                  <p className="text-[11px] text-gray-500">Cole links de Instagram Reels, TikTok, YouTube ou MP4.</p>
+                  <h3 className="text-base font-black text-gray-900">Salvar Publicação & Capa na Biblioteca</h3>
+                  <p className="text-[11px] text-gray-500">Envie uma imagem de capa ou cole link de vídeo.</p>
                 </div>
               </div>
               <button 
@@ -1041,87 +1188,135 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
               </button>
             </div>
 
-            {/* Quick Sample Links */}
-            <div className="bg-pink-50/60 border border-pink-100 p-3 rounded-2xl flex flex-col gap-1.5">
-              <span className="text-[10px] font-black uppercase text-pink-600 flex items-center gap-1">
-                <Flame className="w-3 h-3" /> Teste com 1 clique (Exemplos Prontos):
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {SAMPLE_VIDEO_LINKS.map((sample, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setNewMediaUrl(sample.url);
-                      setNewTitle(sample.title);
-                      setNewCategory(sample.category as any);
-                    }}
-                    className="px-2.5 py-1 bg-white hover:bg-pink-600 hover:text-white text-gray-700 text-[11px] font-semibold rounded-lg border border-pink-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1"
-                  >
-                    <Play className="w-2.5 h-2.5 text-pink-500 fill-pink-500" />
-                    <span>{sample.label}</span>
-                  </button>
-                ))}
-              </div>
+            {/* TAB SELECTOR: LINK VS UPLOAD DIRECT */}
+            <div className="grid grid-cols-2 p-1 bg-gray-100 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setAddModalTab('link')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  addModalTab === 'link' ? 'bg-white text-pink-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <LinkIcon className="w-3.5 h-3.5" />
+                <span>Link de Vídeo (Reels/TikTok)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddModalTab('upload')}
+                className={`py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  addModalTab === 'upload' ? 'bg-white text-pink-700 shadow-xs' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Enviar Imagem de Capa</span>
+              </button>
             </div>
+
+            {addModalTab === 'link' && (
+              /* Quick Sample Links */
+              <div className="bg-pink-50/60 border border-pink-100 p-3 rounded-2xl flex flex-col gap-1.5">
+                <span className="text-[10px] font-black uppercase text-pink-600 flex items-center gap-1">
+                  <Flame className="w-3 h-3" /> Teste com 1 clique (Exemplos Prontos):
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {SAMPLE_VIDEO_LINKS.map((sample, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setNewMediaUrl(sample.url);
+                        setNewTitle(sample.title);
+                        setNewCategory(sample.category as any);
+                      }}
+                      className="px-2.5 py-1 bg-white hover:bg-pink-600 hover:text-white text-gray-700 text-[11px] font-semibold rounded-lg border border-pink-200 shadow-2xs transition-all cursor-pointer flex items-center gap-1"
+                    >
+                      <Play className="w-2.5 h-2.5 text-pink-500 fill-pink-500" />
+                      <span>{sample.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleCreateTemplate} className="flex flex-col gap-4">
               
-              {/* VIDEO URL INPUT WITH LIVE COVER EXTRACTION */}
-              <div>
-                <label className="text-[11px] font-extrabold text-gray-800 uppercase flex items-center justify-between">
-                  <span className="flex items-center gap-1">
-                    <LinkIcon className="w-3.5 h-3.5 text-pink-600" /> Link do Instagram / TikTok / YouTube / Vídeo
-                  </span>
-                  {isFetchingMeta ? (
-                    <span className="text-[10px] text-pink-600 font-bold flex items-center gap-1">
-                      <RefreshCw className="w-3 h-3 animate-spin" /> Buscando capa real...
+              {addModalTab === 'link' ? (
+                /* VIDEO URL INPUT WITH LIVE COVER EXTRACTION */
+                <div>
+                  <label className="text-[11px] font-extrabold text-gray-800 uppercase flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <LinkIcon className="w-3.5 h-3.5 text-pink-600" /> Link do Instagram / TikTok / YouTube / Vídeo
                     </span>
-                  ) : (
-                    <span className="text-[10px] text-emerald-600 font-bold">
-                      ✓ Pronto
-                    </span>
-                  )}
-                </label>
-                <div className="flex items-center bg-gray-50 border border-gray-200 focus-within:border-pink-500 rounded-xl px-3 py-2.5 mt-1.5">
-                  <input 
-                    type="url" 
-                    placeholder="https://www.instagram.com/reel/... ou https://www.tiktok.com/@..." 
-                    value={newMediaUrl} 
-                    onChange={e => setNewMediaUrl(e.target.value)}
-                    required
-                    className="w-full bg-transparent text-xs font-medium text-gray-900 focus:outline-hidden"
-                  />
-                  {newMediaUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setNewMediaUrl("")}
-                      className="text-gray-400 hover:text-gray-600 text-xs font-bold ml-1 cursor-pointer"
-                    >
-                      Limpar
-                    </button>
-                  )}
+                    {isFetchingMeta ? (
+                      <span className="text-[10px] text-pink-600 font-bold flex items-center gap-1">
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Buscando capa real...
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-emerald-600 font-bold">
+                        ✓ Pronto
+                      </span>
+                    )}
+                  </label>
+                  <div className="flex items-center bg-gray-50 border border-gray-200 focus-within:border-pink-500 rounded-xl px-3 py-2.5 mt-1.5">
+                    <input 
+                      type="url" 
+                      placeholder="https://www.instagram.com/reel/... ou https://www.tiktok.com/@..." 
+                      value={newMediaUrl} 
+                      onChange={e => setNewMediaUrl(e.target.value)}
+                      required={addModalTab === 'link'}
+                      className="w-full bg-transparent text-xs font-medium text-gray-900 focus:outline-hidden"
+                    />
+                    {newMediaUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setNewMediaUrl("")}
+                        className="text-gray-400 hover:text-gray-600 text-xs font-bold ml-1 cursor-pointer"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* DIRECT IMAGE UPLOAD BOX */
+                <div>
+                  <label className="text-[11px] font-extrabold text-gray-800 uppercase flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <ImageIcon className="w-3.5 h-3.5 text-pink-600" /> Selecionar Arquivo de Capa (PNG, JPG, WebP)
+                    </span>
+                  </label>
+                  <label className="mt-1.5 flex flex-col items-center justify-center border-2 border-dashed border-pink-200 hover:border-pink-500 bg-pink-50/30 hover:bg-pink-50/60 p-6 rounded-2xl transition-all cursor-pointer group text-center">
+                    <Upload className="w-8 h-8 text-pink-500 mb-2 group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-bold text-gray-800">Clique para selecionar imagem do dispositivo</span>
+                    <span className="text-[10px] text-gray-500 mt-0.5">Suporta imagens em alta definição e capas personalizadas</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleUploadImageFile}
+                      className="hidden" 
+                    />
+                  </label>
+                </div>
+              )}
 
               {/* LIVE COVER (THUMBNAIL) PREVIEW BOX */}
-              {newMediaUrl && (
+              {(newMediaUrl || newCustomThumbnail || serverThumbnail) && (
                 <div className="bg-[#180f1e] rounded-2xl p-3 border border-pink-950/60 flex flex-col gap-2.5 text-white">
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="font-bold flex items-center gap-1.5 text-pink-400">
-                      <Eye className="w-3.5 h-3.5" /> Pré-visualização do Vídeo & Capa:
+                      <Eye className="w-3.5 h-3.5" /> Pré-visualização da Capa:
                     </span>
                     <span className="px-2 py-0.5 bg-pink-600 text-white rounded-md text-[10px] font-black uppercase">
-                      {extractedInfo.sourceLabel}
+                      {extractedInfo.sourceLabel || 'Capa Carregada'}
                     </span>
                   </div>
 
                   <div className="relative aspect-video rounded-xl overflow-hidden bg-black flex items-center justify-center border border-gray-800">
                     {/* Real Extracted Image Cover */}
-                    {serverThumbnail || newCustomThumbnail || extractedInfo.thumbnailUrl ? (
+                    {newCustomThumbnail || serverThumbnail || extractedInfo.thumbnailUrl ? (
                       <img 
                         src={newCustomThumbnail || serverThumbnail || extractedInfo.thumbnailUrl} 
-                        alt="Capa do Vídeo"
+                        alt="Capa"
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                         onError={(e) => {
@@ -1138,31 +1333,6 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                           <Film className="w-8 h-8 text-white" />
                         </div>
                         <span className="text-xs font-black text-white">Reels do Instagram Conectado</span>
-                        <a 
-                          href={newMediaUrl} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="text-[11px] text-pink-400 hover:underline flex items-center gap-1"
-                        >
-                          <span>Testar abrir no Instagram</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
-                    ) : extractedInfo.source === 'tiktok' ? (
-                      <div className="flex flex-col items-center justify-center p-4 text-center gap-2">
-                        <div className="p-3 bg-black border border-gray-700 rounded-2xl shadow-lg">
-                          <Film className="w-8 h-8 text-cyan-400" />
-                        </div>
-                        <span className="text-xs font-black text-white">Vídeo do TikTok Conectado</span>
-                        <a 
-                          href={newMediaUrl} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1"
-                        >
-                          <span>Testar abrir no TikTok</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
                       </div>
                     ) : extractedInfo.source === 'direct_video' ? (
                       <video 
@@ -1172,13 +1342,13 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                       />
                     ) : (
                       <div className="flex flex-col items-center gap-1 text-gray-400">
-                        <VideoIcon className="w-8 h-8 text-pink-400" />
-                        <span className="text-xs">Link de vídeo pronto para salvar</span>
+                        <ImageIcon className="w-8 h-8 text-pink-400" />
+                        <span className="text-xs">Capa pronta para salvar</span>
                       </div>
                     )}
 
                     <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/80 backdrop-blur-md rounded text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                      <Check className="w-3 h-3 text-emerald-400" /> Vídeo vinculado com sucesso
+                      <Check className="w-3 h-3 text-emerald-400" /> Capa vinculada com sucesso
                     </div>
                   </div>
                 </div>
@@ -1187,10 +1357,10 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
               {/* Title & Category */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-gray-700 uppercase">Título do Vídeo / Modelo (Opcional)</label>
+                  <label className="text-[11px] font-bold text-gray-700 uppercase">Título da Capa / Modelo</label>
                   <input 
                     type="text" 
-                    placeholder="ex: Roteiro Viral para Reels / TikTok (ou gerado auto)" 
+                    placeholder="ex: Roteiro Viral para Reels / Capa Promocional" 
                     value={newTitle} 
                     onChange={e => setNewTitle(e.target.value)}
                     className="w-full mt-1 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-medium focus:outline-pink-500"
@@ -1205,7 +1375,8 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                     className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold focus:outline-pink-500"
                   >
                     <option value="reels">🎬 Reels & Vídeos</option>
-                    <option value="carrossel">📊 Carrosséis</option>
+                    <option value="carrossel">📊 Carrosséis & Imagens</option>
+                    <option value="minhas_publicacoes">📌 Minha Publicação Salva</option>
                     <option value="copy">⚡ Modelos de Copy</option>
                     <option value="oferta">🎯 Oferta & Lançamento</option>
                     <option value="quote">☕ Inspiração & Quote</option>
@@ -1216,30 +1387,15 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
               {/* Caption */}
               <div>
                 <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center justify-between">
-                  <span>Legenda / Roteiro do Vídeo (Opcional)</span>
+                  <span>Legenda / Texto da Publicação (Opcional)</span>
                   <span className="text-[10px] text-gray-400 font-normal">Preenchimento automático se vazio</span>
                 </label>
                 <textarea 
                   rows={3}
-                  placeholder="Escreva a legenda com ganchos, corpo do texto e hashtags (ou deixe em branco)..." 
+                  placeholder="Escreva a legenda com ganchos, corpo do texto e hashtags..." 
                   value={newCaption} 
                   onChange={e => setNewCaption(e.target.value)}
                   className="w-full mt-1 p-3 border border-gray-200 rounded-xl text-xs focus:outline-pink-500 leading-relaxed font-medium"
-                />
-              </div>
-
-              {/* Custom Thumbnail Override (Optional) */}
-              <div>
-                <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center justify-between">
-                  <span>URL Personalizada de Capa (Opcional)</span>
-                  <span className="text-[10px] text-gray-400 font-normal">Substituir capa padrão</span>
-                </label>
-                <input 
-                  type="url" 
-                  placeholder="https://... (ou deixe em branco para usar a capa do vídeo)" 
-                  value={newCustomThumbnail} 
-                  onChange={e => setNewCustomThumbnail(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-pink-500"
                 />
               </div>
 
@@ -1249,70 +1405,123 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                   <label className="text-[11px] font-bold text-gray-700 uppercase">Dica de Engajamento</label>
                   <input 
                     type="text" 
-                    placeholder="ex: Corte rápido a cada 3s" 
+                    placeholder="ex: Prender atenção nos 3 primeiros segundos..." 
                     value={newTip} 
                     onChange={e => setNewTip(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-pink-500"
+                    className="w-full mt-1 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-medium focus:outline-pink-500"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-gray-700 uppercase">Tags</label>
+                  <label className="text-[11px] font-bold text-gray-700 uppercase">Tags (separadas por vírgula)</label>
                   <input 
                     type="text" 
-                    placeholder="viral, dicas, marketing, reels" 
+                    placeholder="viral, dicas, reels, capa" 
                     value={newTags} 
                     onChange={e => setNewTags(e.target.value)}
-                    className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-xs focus:outline-pink-500"
+                    className="w-full mt-1 px-3.5 py-2 border border-gray-200 rounded-xl text-xs font-medium focus:outline-pink-500"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 mt-2">
+              {/* Submit Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-5 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                  className="px-4 py-2.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
+
                 <button
                   type="submit"
-                  className="flex-1 py-3.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 text-white font-extrabold text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 hover:scale-[1.01]"
+                  className="px-6 py-2.5 bg-gradient-to-r from-pink-600 to-violet-600 hover:from-pink-700 hover:to-violet-700 text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer hover:scale-102 flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
-                  <span>Salvar Vídeo & Fechar Janela</span>
+                  <span>Salvar na Biblioteca de Capas</span>
                 </button>
               </div>
+
             </form>
           </div>
         </div>
       )}
 
-      {/* MODAL: VIDEO PLAYER & SCRIPT PREVIEW (INSTAGRAM, TIKTOK, YOUTUBE & MP4) */}
-      {activeVideoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-          <div className="bg-[#1c1223] text-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-pink-900/40 flex flex-col gap-4 animate-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
-            
-            <div className="flex items-center justify-between pb-3 border-b border-[#341b3e]">
+      {/* FULL RESOLUTION IMAGE LIGHTBOX MODAL */}
+      {activeImageLightbox && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-150"
+          onClick={() => setActiveImageLightbox(null)}
+        >
+          <div 
+            className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-full flex items-center justify-between text-white pb-2">
+              <span className="text-sm font-bold truncate max-w-md">{activeImageLightbox.title}</span>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-pink-600 text-white text-[10px] font-black uppercase rounded-md">
-                  {activeVideoModal.categoryLabel}
-                </span>
-                <h3 className="text-sm font-bold text-white truncate max-w-md">
-                  {activeVideoModal.title}
-                </h3>
+                <a
+                  href={activeImageLightbox.url}
+                  download="capa-publicacao.jpg"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Baixar Capa</span>
+                </a>
+                <button
+                  onClick={() => setActiveImageLightbox(null)}
+                  className="p-1.5 bg-white/20 hover:bg-white/40 text-white rounded-xl transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-black flex items-center justify-center max-h-[80vh]">
+              <img 
+                src={activeImageLightbox.url} 
+                alt={activeImageLightbox.title} 
+                className="max-h-[80vh] w-auto object-contain"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIDEO PLAYER MODAL */}
+      {activeVideoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[#1c0f24] text-white rounded-3xl p-5 max-w-2xl w-full shadow-2xl border border-pink-900/40 flex flex-col gap-4 max-h-[92vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-2 border-b border-[#2f1737]">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-pink-600/30 text-pink-400 flex items-center justify-center">
+                  <Play className="w-4 h-4 fill-pink-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white truncate max-w-md">
+                    {activeVideoModal.title}
+                  </h3>
+                  <span className="text-[10px] text-pink-300 uppercase font-mono">
+                    {activeVideoModal.categoryLabel}
+                  </span>
+                </div>
               </div>
               <button 
                 onClick={() => setActiveVideoModal(null)}
-                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-all cursor-pointer"
+                className="text-gray-400 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-all cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Video Player Box */}
-            <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border border-[#3b2046] flex items-center justify-center shadow-xl">
+            {/* Video Player Display Container */}
+            <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border border-white/10 flex items-center justify-center shadow-inner">
               {(() => {
                 const targetUrl = activeVideoModal.videoUrl || activeVideoModal.mediaUrl || '';
                 const parsed = parseMediaUrl(targetUrl);
@@ -1325,28 +1534,21 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                       src={parsed.embedUrl}
                       title={activeVideoModal.title}
                       className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
                   );
-                } else if (parsed.source === 'vimeo' && parsed.embedUrl) {
+                } else if (isInstagram) {
+                  const shortcodeMatch = targetUrl.match(/instagram\.com\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
+                  const shortcode = shortcodeMatch ? shortcodeMatch[1] : '';
+                  const embedSrc = shortcode ? `https://www.instagram.com/reel/${shortcode}/embed` : targetUrl;
+                  
                   return (
                     <iframe
-                      src={parsed.embedUrl}
-                      title={activeVideoModal.title}
-                      className="w-full h-full border-0"
-                      allow="autoplay; fullscreen; picture-in-picture"
-                      allowFullScreen
-                    />
-                  );
-                } else if (isInstagram && parsed.shortcode) {
-                  return (
-                    <iframe
-                      src={`https://www.instagram.com/reel/${parsed.shortcode}/embed`}
+                      src={embedSrc}
                       title={activeVideoModal.title}
                       className="w-full h-full border-0 bg-white"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
+                      allowTransparency={true}
                     />
                   );
                 } else if (isTikTok) {
@@ -1393,8 +1595,8 @@ export default function MediaLibraryManager({ onUseTemplate, showNotification }:
                       {activeVideoModal.thumbnailUrl && (
                         <img 
                           src={activeVideoModal.thumbnailUrl} 
-                          alt={activeVideoModal.title}
-                          className="absolute inset-0 w-full h-full object-cover opacity-50"
+                          alt={activeVideoModal.title} 
+                          className="absolute inset-0 w-full h-full object-cover opacity-50" 
                           referrerPolicy="no-referrer"
                         />
                       )}

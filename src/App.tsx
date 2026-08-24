@@ -221,6 +221,49 @@ export default function App() {
     } catch (err) {
       console.warn("Failed to save post to Firebase:", err);
     }
+
+    // Auto sync to media library so covers appear saved in Biblioteca de Publicações
+    if (savedPost.mediaUrl || savedPost.caption) {
+      try {
+        const savedTemplatesRaw = localStorage.getItem("socialflow_media_library");
+        const currentTemplates: any[] = savedTemplatesRaw ? JSON.parse(savedTemplatesRaw) : [];
+        const tplId = `post-tpl-${savedPost.id}`;
+        const tplIndex = currentTemplates.findIndex((t: any) => t.id === tplId);
+        
+        const mediaTpl = {
+          id: tplId,
+          originalPostId: savedPost.id,
+          title: (savedPost.caption?.slice(0, 45) || 'Publicação Criada') + (savedPost.caption && savedPost.caption.length > 45 ? '...' : ''),
+          category: 'minhas_publicacoes',
+          categoryLabel: 'Minha Publicação',
+          caption: savedPost.caption || '',
+          mediaUrl: savedPost.mediaUrl || '',
+          thumbnailUrl: savedPost.mediaUrl || '',
+          videoUrl: savedPost.mediaType === 'video' ? savedPost.mediaUrl : '',
+          mediaType: savedPost.mediaType || 'video',
+          tags: ['minha-publicacao', ...(savedPost.platforms || [])],
+          engagementTip: `Publicação programada para ${savedPost.date} às ${savedPost.time}.`,
+          status: savedPost.status,
+          postDate: savedPost.date,
+          postTime: savedPost.time
+        };
+
+        if (tplIndex >= 0) {
+          currentTemplates[tplIndex] = mediaTpl;
+        } else {
+          currentTemplates.unshift(mediaTpl);
+        }
+
+        localStorage.setItem("socialflow_media_library", JSON.stringify(currentTemplates));
+        fetch("/api/media-templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(mediaTpl)
+        }).catch(() => {});
+      } catch (err) {
+        console.warn("Auto-syncing post to media library:", err);
+      }
+    }
   };
 
   const handleUpdatePostStatus = async (postId: string, newStatus: 'draft' | 'scheduled' | 'published') => {
@@ -491,6 +534,9 @@ export default function App() {
 
             {activeSubTabCalendar === 'biblioteca' && (
               <MediaLibraryManager
+                savedPosts={posts}
+                onEditPost={handleEditPost}
+                onDeletePost={handleDeletePost}
                 onUseTemplate={(tplData) => {
                   setEditingPost({
                     id: `post-${Date.now()}`,
