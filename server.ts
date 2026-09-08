@@ -919,14 +919,18 @@ app.get("/api/media/proxy-image", async (req, res) => {
   }
 });
 
-// Meta & Real Cover Extractor for Instagram, TikTok, YouTube, Vimeo and Videos
+// Meta & Real Cover Extractor for Instagram, TikTok, YouTube, Vimeo, Vercel and Web Apps
 app.post("/api/media/extract-meta", async (req, res) => {
   const { url } = req.body;
   if (!url || typeof url !== "string") {
     return res.status(400).json({ error: "URL inválida ou ausente." });
   }
 
-  const cleanUrl = url.trim();
+  let cleanUrl = url.trim();
+  // Auto-normalize protocol if missing
+  if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://") && !cleanUrl.startsWith("data:") && !cleanUrl.startsWith("blob:")) {
+    cleanUrl = "https://" + cleanUrl;
+  }
 
   try {
     // 1. YouTube & YouTube Shorts
@@ -941,6 +945,122 @@ app.post("/api/media/extract-meta", async (req, res) => {
         videoUrl: cleanUrl,
         embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1`,
         mediaType: "video"
+      });
+    }
+
+    // Helper to generate dynamic SVG cover for Vercel Web Apps
+    const createVercelSvgCover = (domain: string, title?: string) => {
+      const safeTitle = (title || domain || 'Vercel Web App').slice(0, 32).replace(/[<>&"]/g, '');
+      const safeDomain = domain.slice(0, 35).replace(/[<>&"]/g, '');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280" width="100%" height="100%">
+        <defs>
+          <linearGradient id="vercelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#050505" />
+            <stop offset="50%" stop-color="#0d0d0e" />
+            <stop offset="100%" stop-color="#18181b" />
+          </linearGradient>
+          <radialGradient id="vGlow" cx="50%" cy="38%" r="45%">
+            <stop offset="0%" stop-color="#ffffff" stop-opacity="0.14" />
+            <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+          </radialGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#vercelGrad)" />
+        <rect width="100%" height="100%" fill="url(#vGlow)" />
+        <circle cx="360" cy="460" r="160" fill="#ffffff" opacity="0.02" />
+        
+        <!-- Vercel Triangle Geometric Logo -->
+        <g transform="translate(360, 440)">
+          <polygon points="0,-85 85,70 -85,70" fill="#ffffff" />
+        </g>
+        
+        <!-- Live Status Pill -->
+        <g transform="translate(225, 610)">
+          <rect width="270" height="46" rx="23" fill="#18181b" stroke="#3f3f46" stroke-width="1.5" />
+          <circle cx="28" cy="23" r="6" fill="#10b981" />
+          <text x="145" y="29" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2">DEPLOYED ON VERCEL</text>
+        </g>
+        
+        <text x="360" y="730" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">${safeTitle}</text>
+        
+        <!-- Domain pill -->
+        <g transform="translate(180, 775)">
+          <rect width="360" height="44" rx="14" fill="#18181b" stroke="#27272a" stroke-width="1" />
+          <text x="180" y="27" font-family="monospace" font-size="15" font-weight="bold" fill="#a1a1aa" text-anchor="middle">${safeDomain}</text>
+        </g>
+        
+        <text x="360" y="870" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" fill="#71717a" text-anchor="middle">▲ Fast, Secure, Edge-Optimized</text>
+      </svg>`;
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+    };
+
+    // 2. Vercel Web Apps & Deployments (*.vercel.app, vercel.com)
+    if (/vercel\.app|vercel\.com/i.test(cleanUrl)) {
+      let domain = "app.vercel.app";
+      try {
+        const u = new URL(cleanUrl);
+        domain = u.hostname;
+      } catch (_) {
+        const dMatch = cleanUrl.match(/(?:https?:\/\/)?([^\/\s]+)/i);
+        if (dMatch) domain = dMatch[1];
+      }
+
+      let pageTitle = "";
+      let ogImage = "";
+      let pageDesc = "";
+
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const pageResp = await fetch(cleanUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+          },
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (pageResp.ok) {
+          const html = await pageResp.text();
+          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (titleMatch && titleMatch[1]) pageTitle = titleMatch[1].trim();
+
+          const ogTitleMatch = html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i) ||
+                               html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["']og:title["']/i);
+          if (ogTitleMatch && ogTitleMatch[1]) pageTitle = ogTitleMatch[1].trim();
+
+          const ogImgMatch = html.match(/<meta\s+(?:property|name)=["'](?:og:image|twitter:image)["']\s+content=["']([^"']+)["']/i) ||
+                             html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
+          if (ogImgMatch && ogImgMatch[1]) {
+            let imgVal = ogImgMatch[1].trim().replace(/&amp;/g, '&');
+            if (imgVal.startsWith("//")) imgVal = "https:" + imgVal;
+            else if (imgVal.startsWith("/")) imgVal = `https://${domain}${imgVal}`;
+            ogImage = imgVal;
+          }
+
+          const descMatch = html.match(/<meta\s+(?:property|name)=["'](?:description|og:description)["']\s+content=["']([^"']+)["']/i);
+          if (descMatch && descMatch[1]) pageDesc = descMatch[1].trim();
+        }
+      } catch (err: any) {
+        console.warn("Vercel page scrape notice:", err.message);
+      }
+
+      const screenshotUrl = `https://s0.wp.com/mshots/v1/${encodeURIComponent(cleanUrl)}?w=720&h=1280`;
+      const fallbackSvg = createVercelSvgCover(domain, pageTitle);
+      const chosenThumb = ogImage || screenshotUrl;
+
+      return res.json({
+        success: true,
+        source: "vercel",
+        sourceLabel: "Vercel Web App",
+        domain,
+        title: pageTitle || domain,
+        description: pageDesc || `Aplicação web hospedada na Vercel (${domain})`,
+        thumbnailUrl: chosenThumb,
+        fallbackSvg,
+        videoUrl: cleanUrl,
+        embedUrl: cleanUrl,
+        mediaType: "image"
       });
     }
 
@@ -1162,26 +1282,33 @@ app.post("/api/media/extract-meta", async (req, res) => {
       });
     }
 
-    // 6. Generic webpage - scrape OpenGraph
+    // 6. Generic webpage - scrape OpenGraph & fallback to web screenshot
     try {
       const pageResp = await fetch(cleanUrl, {
         headers: {
-          "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
       });
       if (pageResp.ok) {
         const html = await pageResp.text();
         const ogImgMatch = html.match(/<meta\s+(?:property|name)=["'](?:og:image|twitter:image)["']\s+content=["']([^"']+)["']/i) ||
                            html.match(/<meta\s+content=["']([^"']+)["']\s+(?:property|name)=["'](?:og:image|twitter:image)["']/i);
-        const ogTitleMatch = html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i);
+        const ogTitleMatch = html.match(/<meta\s+(?:property|name)=["']og:title["']\s+content=["']([^"']+)["']/i) ||
+                             html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        
+        let foundThumb = ogImgMatch ? ogImgMatch[1].replace(/&amp;/g, '&') : "";
+        if (!foundThumb) {
+          foundThumb = `https://s0.wp.com/mshots/v1/${encodeURIComponent(cleanUrl)}?w=720&h=1280`;
+        }
+
         return res.json({
           success: true,
           source: "webpage",
           sourceLabel: "Página Web",
-          thumbnailUrl: ogImgMatch ? ogImgMatch[1].replace(/&amp;/g, '&') : "",
-          title: ogTitleMatch ? ogTitleMatch[1] : "",
+          thumbnailUrl: foundThumb,
+          title: ogTitleMatch ? ogTitleMatch[1].trim() : "",
           videoUrl: cleanUrl,
-          mediaType: "video"
+          mediaType: "image"
         });
       }
     } catch (e: any) {
@@ -1192,9 +1319,9 @@ app.post("/api/media/extract-meta", async (req, res) => {
       success: true,
       source: "unknown",
       sourceLabel: "Link Externo",
-      thumbnailUrl: "",
+      thumbnailUrl: `https://s0.wp.com/mshots/v1/${encodeURIComponent(cleanUrl)}?w=720&h=1280`,
       videoUrl: cleanUrl,
-      mediaType: "video"
+      mediaType: "image"
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || "Erro ao extrair metadados do vídeo." });

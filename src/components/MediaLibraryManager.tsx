@@ -137,6 +137,63 @@ export function createVideoCoverSvg(title: string = 'Vídeo'): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+// Normalizer ensuring any URL (even without https://) has valid protocol
+export function normalizeUrl(input: string): string {
+  let cleaned = (input || '').trim();
+  if (!cleaned) return '';
+  cleaned = cleaned.replace(/^["'`<(\[]+|["'`>)\]]+$/g, '').trim();
+  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://') && !cleaned.startsWith('data:') && !cleaned.startsWith('blob:')) {
+    cleaned = 'https://' + cleaned;
+  }
+  return cleaned;
+}
+
+// Vercel High-Tech Dark SVG Cover
+export function createVercelCoverSvg(domain: string = 'app.vercel.app', title: string = 'Vercel Web App'): string {
+  const safeTitle = (title || domain || 'Vercel Web App').slice(0, 32).replace(/[<>&"]/g, '');
+  let safeDomain = domain.replace(/^https?:\/\//i, '').split('/')[0] || 'app.vercel.app';
+  safeDomain = safeDomain.slice(0, 35).replace(/[<>&"]/g, '');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280" width="100%" height="100%">
+  <defs>
+    <linearGradient id="vGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050505" />
+      <stop offset="50%" stop-color="#0d0d0e" />
+      <stop offset="100%" stop-color="#18181b" />
+    </linearGradient>
+    <radialGradient id="vGlow" cx="50%" cy="38%" r="45%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#vGrad)" />
+  <rect width="100%" height="100%" fill="url(#vGlow)" />
+  <circle cx="360" cy="460" r="160" fill="#ffffff" opacity="0.02" />
+  
+  <!-- Vercel Triangle -->
+  <g transform="translate(360, 440)">
+    <polygon points="0,-85 85,70 -85,70" fill="#ffffff" />
+  </g>
+  
+  <!-- Live Status Pill -->
+  <g transform="translate(225, 610)">
+    <rect width="270" height="46" rx="23" fill="#18181b" stroke="#3f3f46" stroke-width="1.5" />
+    <circle cx="28" cy="23" r="6" fill="#10b981" />
+    <text x="145" y="29" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="2">DEPLOYED ON VERCEL</text>
+  </g>
+  
+  <text x="360" y="730" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="900" fill="#ffffff" text-anchor="middle">${safeTitle}</text>
+  
+  <!-- Domain pill -->
+  <g transform="translate(180, 775)">
+    <rect width="360" height="44" rx="14" fill="#18181b" stroke="#27272a" stroke-width="1" />
+    <text x="180" y="27" font-family="monospace" font-size="15" font-weight="bold" fill="#a1a1aa" text-anchor="middle">${safeDomain}</text>
+  </g>
+  
+  <text x="360" y="870" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" fill="#71717a" text-anchor="middle">▲ Fast, Secure, Edge-Optimized</text>
+</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 // Master cover resolver guaranteeing valid image on Vercel and production
 export function resolveCoverImage(tpl: { thumbnailUrl?: string; mediaUrl?: string; videoUrl?: string; title?: string }): string {
   const thumb = (tpl.thumbnailUrl || '').trim();
@@ -146,34 +203,46 @@ export function resolveCoverImage(tpl: { thumbnailUrl?: string; mediaUrl?: strin
     return thumb;
   }
 
-  // 2. YouTube
-  const ytMatch = (tpl.videoUrl || tpl.mediaUrl || thumb).match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  // 2. Vercel App / Deployment (*.vercel.app, vercel.com)
+  const candidateUrl = tpl.videoUrl || tpl.mediaUrl || thumb || '';
+  if (/vercel\.app|vercel\.com/i.test(candidateUrl)) {
+    const norm = normalizeUrl(candidateUrl);
+    return `https://s0.wp.com/mshots/v1/${encodeURIComponent(norm)}?w=720&h=1280`;
+  }
+
+  // 3. YouTube
+  const ytMatch = candidateUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
   if (ytMatch && ytMatch[1]) {
     return `https://img.youtube.com/vi/${ytMatch[1]}/hqdefault.jpg`;
   }
 
-  // 3. Vimeo
-  const vimeoMatch = (tpl.videoUrl || tpl.mediaUrl || thumb).match(/(?:vimeo\.com\/)(\d+)/i);
+  // 4. Vimeo
+  const vimeoMatch = candidateUrl.match(/(?:vimeo\.com\/)(\d+)/i);
   if (vimeoMatch && vimeoMatch[1]) {
     return `https://vumbnail.com/${vimeoMatch[1]}.jpg`;
   }
 
-  // 4. Instagram Fallback only when no real thumb is available
-  const instaMatch = (tpl.videoUrl || tpl.mediaUrl || thumb).match(/instagram\.com\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
-  if (instaMatch || /instagram\.com/i.test(tpl.videoUrl || tpl.mediaUrl || '')) {
+  // 5. Instagram Fallback only when no real thumb is available
+  const instaMatch = candidateUrl.match(/instagram\.com\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
+  if (instaMatch || /instagram\.com/i.test(candidateUrl)) {
     const shortcode = instaMatch ? instaMatch[1] : '';
     return createInstagramCoverSvg(shortcode, tpl.title || 'Instagram Reels');
   }
 
-  // 5. TikTok Fallback only when no real thumb is available
-  if (/tiktok\.com/i.test(tpl.videoUrl || tpl.mediaUrl || thumb)) {
+  // 6. TikTok Fallback only when no real thumb is available
+  if (/tiktok\.com/i.test(candidateUrl)) {
     return createTikTokCoverSvg(tpl.title || 'TikTok Vídeo');
   }
 
-  // 6. Direct image file in mediaUrl
+  // 7. Direct image file in mediaUrl
   const mUrl = (tpl.mediaUrl || '').trim();
   if (mUrl && (mUrl.startsWith('data:image') || mUrl.startsWith('blob:') || mUrl.startsWith('http://') || mUrl.startsWith('https://'))) {
     return mUrl;
+  }
+
+  // 8. Generic Webpage fallback screenshot if valid web URL
+  if (candidateUrl && candidateUrl.startsWith('http') && !candidateUrl.endsWith('.mp4')) {
+    return `https://s0.wp.com/mshots/v1/${encodeURIComponent(candidateUrl)}?w=720&h=1280`;
   }
 
   return createVideoCoverSvg(tpl.title || 'Vídeo');
@@ -184,10 +253,11 @@ export function parseMediaUrl(inputUrl: string): {
   thumbnailUrl: string;
   videoUrl: string;
   mediaType: 'image' | 'video';
-  source: 'youtube' | 'vimeo' | 'tiktok' | 'instagram' | 'direct_video' | 'image' | 'unknown';
+  source: 'youtube' | 'vimeo' | 'tiktok' | 'instagram' | 'direct_video' | 'image' | 'vercel' | 'webpage' | 'unknown';
   sourceLabel: string;
   embedUrl?: string;
   shortcode?: string;
+  domain?: string;
 } {
   const trimmed = (inputUrl || '').trim();
   if (!trimmed) {
@@ -228,7 +298,25 @@ export function parseMediaUrl(inputUrl: string): {
     };
   }
 
-  // 3. Instagram (Reels / Post / TV)
+  // 3. Vercel Web Apps & Deployments (*.vercel.app, vercel.com)
+  if (/vercel\.app|vercel\.com/i.test(trimmed)) {
+    const norm = normalizeUrl(trimmed);
+    let domain = "app.vercel.app";
+    try {
+      domain = new URL(norm).hostname;
+    } catch (_) {}
+    return {
+      thumbnailUrl: `https://s0.wp.com/mshots/v1/${encodeURIComponent(norm)}?w=720&h=1280`,
+      videoUrl: norm,
+      mediaType: 'image',
+      source: 'vercel',
+      sourceLabel: 'Vercel Web App',
+      embedUrl: norm,
+      domain
+    };
+  }
+
+  // 4. Instagram (Reels / Post / TV)
   const instaMatch = trimmed.match(/instagram\.com\/(?:reel|p|tv)\/([a-zA-Z0-9_-]+)/i);
   if (instaMatch && instaMatch[1]) {
     const shortcode = instaMatch[1];
@@ -243,7 +331,7 @@ export function parseMediaUrl(inputUrl: string): {
     };
   }
 
-  // 4. TikTok
+  // 5. TikTok
   if (/tiktok\.com/i.test(trimmed)) {
     return {
       thumbnailUrl: '',
@@ -254,7 +342,7 @@ export function parseMediaUrl(inputUrl: string): {
     };
   }
 
-  // 5. Direct Video File (.mp4, .webm, .mov, mixkit, pexels, blob/data)
+  // 6. Direct Video File (.mp4, .webm, .mov, mixkit, pexels, blob/data)
   if (/\.(mp4|webm|mov|m4v|ogv)(\?.*)?$/i.test(trimmed) || /mixkit\.co/i.test(trimmed) || /pexels\.com\/video/i.test(trimmed) || trimmed.startsWith('blob:') || trimmed.startsWith('data:video')) {
     return {
       thumbnailUrl: '',
@@ -265,7 +353,7 @@ export function parseMediaUrl(inputUrl: string): {
     };
   }
 
-  // 6. Direct Image File
+  // 7. Direct Image File
   if (/\.(jpeg|jpg|gif|png|webp|svg|avif)(\?.*)?$/i.test(trimmed) || trimmed.startsWith('data:image')) {
     return {
       thumbnailUrl: trimmed,
@@ -276,12 +364,17 @@ export function parseMediaUrl(inputUrl: string): {
     };
   }
 
+  const norm = normalizeUrl(trimmed);
+  let domain = "";
+  try { domain = new URL(norm).hostname; } catch (_) {}
+
   return {
-    thumbnailUrl: createVideoCoverSvg('Link de Vídeo'),
-    videoUrl: trimmed,
-    mediaType: 'video',
-    source: 'unknown',
-    sourceLabel: 'Link Externo'
+    thumbnailUrl: (norm.startsWith('http') && norm.includes('.')) ? `https://s0.wp.com/mshots/v1/${encodeURIComponent(norm)}?w=720&h=1280` : createVideoCoverSvg('Link'),
+    videoUrl: norm,
+    mediaType: 'image',
+    source: (norm.startsWith('http') && norm.includes('.')) ? 'webpage' : 'unknown',
+    sourceLabel: domain ? `Web: ${domain}` : 'Link Externo',
+    domain
   };
 }
 
@@ -584,7 +677,7 @@ export default function MediaLibraryManager({
     const matchesCategory = 
       selectedCategory === 'all' || 
       (selectedCategory === 'links_salvos' 
-        ? (tpl.category === 'links_salvos' || tpl.tags?.some(t => t.includes('link-salvo') || t.includes('link-adicionado')) || /instagram\.com|tiktok\.com|youtube\.com|youtu\.be/i.test(tpl.mediaUrl || tpl.videoUrl || ''))
+        ? (tpl.category === 'links_salvos' || tpl.tags?.some(t => t.includes('link-salvo') || t.includes('link-adicionado') || t.includes('vercel')) || /instagram\.com|tiktok\.com|youtube\.com|youtu\.be|vercel\.app|vercel\.com/i.test(tpl.mediaUrl || tpl.videoUrl || ''))
         : selectedCategory === 'minhas_publicacoes' 
           ? (tpl.category === 'minhas_publicacoes' || tpl.id.startsWith('post-tpl-')) 
           : tpl.category === selectedCategory);
@@ -701,59 +794,106 @@ export default function MediaLibraryManager({
     showNotification(`✓ ${postsToSync.length} capas de publicações sincronizadas com sucesso!`, "success");
   };
 
-  // Quick Save directly from top bar (supports single or multi-link text)
+  // Quick Save directly from top bar (supports single or multi-link text, Vercel apps, Reels, TikTok, YouTube)
   const handleQuickSaveLink = async (e: React.FormEvent) => {
     e.preventDefault();
     const rawInput = quickLink.trim();
     if (!rawInput) return;
 
-    // Extract all URLs from input
-    const urlMatches = rawInput.match(/https?:\/\/[^\s,]+/gi) || [rawInput];
-    if (urlMatches.length === 0) return;
+    // Split input by whitespace, comma, or newline and normalize each candidate
+    const rawParts = rawInput.split(/[\s,\n]+/).map(p => p.trim()).filter(Boolean);
+    const validUrls: string[] = [];
+
+    for (const part of rawParts) {
+      const norm = normalizeUrl(part);
+      if (norm && (norm.includes('.') || norm.includes('localhost'))) {
+        validUrls.push(norm);
+      }
+    }
+
+    if (validUrls.length === 0) {
+      showNotification("Por favor, insira um link válido (ex: https://meuapp.vercel.app, Instagram Reels, TikTok ou YouTube).", "info");
+      return;
+    }
 
     setIsQuickSaving(true);
     const newItems: MediaTemplate[] = [];
 
-    for (let i = 0; i < urlMatches.length; i++) {
-      const cleanUrl = urlMatches[i].trim();
-      if (!cleanUrl) continue;
-
+    for (let i = 0; i < validUrls.length; i++) {
+      const cleanUrl = validUrls[i];
       const parsed = parseMediaUrl(cleanUrl);
       let finalThumb = parsed.thumbnailUrl || "";
       let autoTitle = "";
 
-      try {
-        const resp = await fetch("/api/media/extract-meta", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: cleanUrl })
-        });
-        if (resp.ok) {
-          const meta = await resp.json();
-          if (meta.thumbnailUrl) finalThumb = meta.thumbnailUrl;
-          if (meta.title) autoTitle = meta.title;
-        }
-      } catch (_) {}
-
+      const isVercel = /vercel\.app|vercel\.com/i.test(cleanUrl);
       const isIg = /instagram\.com/i.test(cleanUrl);
       const isTt = /tiktok\.com/i.test(cleanUrl);
       const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
 
-      const titleText = autoTitle || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Capa & Vídeo Salvo") + ` #${templates.length + newItems.length + 1}`;
-      const resolvedThumbnail = finalThumb || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: titleText });
+      // Try server extraction with 4s timeout (graceful failure on static Vercel environments)
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const resp = await fetch("/api/media/extract-meta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: cleanUrl }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (resp.ok) {
+          const contentType = resp.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const meta = await resp.json();
+            if (meta.thumbnailUrl) finalThumb = meta.thumbnailUrl;
+            if (meta.title) autoTitle = meta.title;
+          }
+        }
+      } catch (_) {
+        // Safe client fallback
+      }
+
+      // Domain extraction
+      let domain = "";
+      try {
+        domain = new URL(cleanUrl).hostname;
+      } catch (_) {}
+
+      // Master client-side fallback if server didn't provide a thumbnail
+      if (!finalThumb) {
+        if (isVercel) {
+          finalThumb = `https://s0.wp.com/mshots/v1/${encodeURIComponent(cleanUrl)}?w=720&h=1280`;
+        } else {
+          finalThumb = resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: autoTitle || 'Link Salvo' });
+        }
+      }
+
+      const defaultTitle = isVercel
+        ? `Vercel App: ${domain || 'Web App'}`
+        : isIg ? "Instagram Reels Salvo"
+        : isTt ? "TikTok Vídeo Salvo"
+        : isYt ? "YouTube Vídeo Salvo"
+        : "Link Salvo com Capa";
+
+      const titleText = autoTitle || `${defaultTitle} #${templates.length + newItems.length + 1}`;
 
       const newTpl: MediaTemplate = {
         id: `tpl-${Date.now()}-${i}`,
         title: titleText,
         category: 'links_salvos' as any,
-        categoryLabel: isIg ? 'Instagram Reels' : isTt ? 'TikTok Vídeo' : isYt ? 'YouTube Shorts' : 'Link Adicionado',
-        caption: `Capa e vídeo salvos via link.\n\nConfira este formato para se inspirar e criar conteúdo com alto engajamento! 🚀\n\n#linksalvo #reels #viral`,
+        categoryLabel: isVercel ? 'Vercel Web App' : isIg ? 'Instagram Reels' : isTt ? 'TikTok Vídeo' : isYt ? 'YouTube Shorts' : 'Link Adicionado',
+        caption: isVercel
+          ? `Aplicação Web Vercel salva na biblioteca.\n\n🌐 Link: ${cleanUrl}\n\nPerfeito para compartilhar nos Stories, Reels e Bio! 🚀\n\n#vercel #webapp #tech #lancamento`
+          : `Capa e mídia salvas via link rápido.\n\nConfira este formato para se inspirar e criar conteúdo com alto engajamento! 🚀\n\n#linksalvo #reels #viral`,
         mediaUrl: cleanUrl,
-        thumbnailUrl: resolvedThumbnail,
-        videoUrl: cleanUrl,
-        mediaType: 'video',
-        tags: ['link-salvo', 'link-adicionado', 'viral', isIg ? 'instagram' : isTt ? 'tiktok' : 'youtube'],
-        engagementTip: "Capa e mídia extraídas com sucesso e salvas na sua biblioteca permanente."
+        thumbnailUrl: finalThumb,
+        videoUrl: isVercel ? '' : cleanUrl,
+        mediaType: isVercel ? 'image' : 'video',
+        tags: ['link-salvo', 'link-adicionado', 'viral', isVercel ? 'vercel' : isIg ? 'instagram' : isTt ? 'tiktok' : 'youtube'],
+        engagementTip: isVercel
+          ? "Aplicação Vercel salva com sucesso. Use como link da Bio ou faça um tour gravado da tela."
+          : "Capa e mídia extraídas com sucesso e salvas na sua biblioteca permanente."
       };
 
       newItems.push(newTpl);
@@ -769,7 +909,8 @@ export default function MediaLibraryManager({
     if (newItems.length > 0) {
       const updated = [...newItems, ...templates];
       saveTemplates(updated);
-      showNotification(`✓ ${newItems.length === 1 ? 'Capa do link salva' : `${newItems.length} capas de links salvas`} com sucesso na Biblioteca!`, "success");
+      setSelectedCategory('links_salvos'); // IMMEDIATELY SHOW THE SAVED CARDS!
+      showNotification(`✓ ${newItems.length === 1 ? 'Capa do link salva' : `${newItems.length} capas de links salvas`} com sucesso na aba de Links Salvos!`, "success");
     }
 
     setQuickLink("");
@@ -782,53 +923,83 @@ export default function MediaLibraryManager({
     const raw = batchLinksInput.trim();
     if (!raw) return;
 
-    const urls = raw.split(/[\n,]+/).map(u => u.trim()).filter(u => u.startsWith('http'));
-    if (urls.length === 0) {
-      showNotification("Nenhum link HTTP válido encontrado no texto.", "info");
+    const rawUrls = raw.split(/[\n,]+/).map(u => normalizeUrl(u)).filter(u => u.length > 5 && (u.includes('.') || u.includes('localhost')));
+    if (rawUrls.length === 0) {
+      showNotification("Nenhum link válido encontrado no texto.", "info");
       return;
     }
 
     setIsBatchProcessing(true);
     const newItems: MediaTemplate[] = [];
 
-    for (let i = 0; i < urls.length; i++) {
-      const cleanUrl = urls[i];
+    for (let i = 0; i < rawUrls.length; i++) {
+      const cleanUrl = rawUrls[i];
       const parsed = parseMediaUrl(cleanUrl);
       let finalThumb = parsed.thumbnailUrl || "";
       let autoTitle = "";
 
-      try {
-        const resp = await fetch("/api/media/extract-meta", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: cleanUrl })
-        });
-        if (resp.ok) {
-          const meta = await resp.json();
-          if (meta.thumbnailUrl) finalThumb = meta.thumbnailUrl;
-          if (meta.title) autoTitle = meta.title;
-        }
-      } catch (_) {}
-
+      const isVercel = /vercel\.app|vercel\.com/i.test(cleanUrl);
       const isIg = /instagram\.com/i.test(cleanUrl);
       const isTt = /tiktok\.com/i.test(cleanUrl);
       const isYt = /youtube\.com|youtu\.be/i.test(cleanUrl);
 
-      const titleText = autoTitle || (isIg ? "Instagram Reels Salvo" : isTt ? "TikTok Vídeo Salvo" : isYt ? "YouTube Vídeo Salvo" : "Capa & Vídeo Salvo") + ` #${templates.length + newItems.length + 1}`;
-      const resolvedThumbnail = finalThumb || resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: titleText });
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+        const resp = await fetch("/api/media/extract-meta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: cleanUrl }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (resp.ok) {
+          const contentType = resp.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const meta = await resp.json();
+            if (meta.thumbnailUrl) finalThumb = meta.thumbnailUrl;
+            if (meta.title) autoTitle = meta.title;
+          }
+        }
+      } catch (_) {}
+
+      let domain = "";
+      try { domain = new URL(cleanUrl).hostname; } catch (_) {}
+
+      if (!finalThumb) {
+        if (isVercel) {
+          finalThumb = `https://s0.wp.com/mshots/v1/${encodeURIComponent(cleanUrl)}?w=720&h=1280`;
+        } else {
+          finalThumb = resolveCoverImage({ mediaUrl: cleanUrl, videoUrl: cleanUrl, title: autoTitle || 'Link Salvo' });
+        }
+      }
+
+      const defaultTitle = isVercel
+        ? `Vercel App: ${domain || 'Web App'}`
+        : isIg ? "Instagram Reels Salvo"
+        : isTt ? "TikTok Vídeo Salvo"
+        : isYt ? "YouTube Vídeo Salvo"
+        : "Capa & Vídeo Salvo";
+
+      const titleText = autoTitle || `${defaultTitle} #${templates.length + newItems.length + 1}`;
 
       const newTpl: MediaTemplate = {
         id: `tpl-batch-${Date.now()}-${i}`,
         title: titleText,
         category: 'links_salvos' as any,
-        categoryLabel: isIg ? 'Instagram Reels' : isTt ? 'TikTok Vídeo' : isYt ? 'YouTube Shorts' : 'Link Adicionado',
-        caption: `Capa e vídeo salvos em lote via links adicionados.\n\n#linksalvo #reels #viral`,
+        categoryLabel: isVercel ? 'Vercel Web App' : isIg ? 'Instagram Reels' : isTt ? 'TikTok Vídeo' : isYt ? 'YouTube Shorts' : 'Link Adicionado',
+        caption: isVercel
+          ? `Aplicação Web Vercel salva na biblioteca.\n\n🌐 Link: ${cleanUrl}\n\n#vercel #webapp #tech`
+          : `Capa e vídeo salvos em lote via links adicionados.\n\n#linksalvo #reels #viral`,
         mediaUrl: cleanUrl,
-        thumbnailUrl: resolvedThumbnail,
-        videoUrl: cleanUrl,
-        mediaType: 'video',
-        tags: ['link-salvo', 'link-adicionado', isIg ? 'instagram' : isTt ? 'tiktok' : 'youtube'],
-        engagementTip: "Item salvo permanentemente na sua Biblioteca de Capas & Mídias."
+        thumbnailUrl: finalThumb,
+        videoUrl: isVercel ? '' : cleanUrl,
+        mediaType: isVercel ? 'image' : 'video',
+        tags: ['link-salvo', 'link-adicionado', isVercel ? 'vercel' : isIg ? 'instagram' : isTt ? 'tiktok' : 'youtube'],
+        engagementTip: isVercel
+          ? "Aplicação Vercel salva com sucesso. Use como link da Bio ou para demonstrações."
+          : "Item salvo permanentemente na sua Biblioteca de Capas & Mídias."
       };
 
       newItems.push(newTpl);
@@ -843,6 +1014,7 @@ export default function MediaLibraryManager({
     if (newItems.length > 0) {
       const updated = [...newItems, ...templates];
       saveTemplates(updated);
+      setSelectedCategory('links_salvos');
       showNotification(`✓ ${newItems.length} capas adicionadas à Biblioteca com sucesso!`, "success");
     }
 
@@ -1037,15 +1209,15 @@ export default function MediaLibraryManager({
           </div>
           <div>
             <span className="text-xs font-black text-gray-900 block">Salvar Link Rápido com Capa</span>
-            <span className="text-[10px] text-gray-500">Instagram Reels, TikTok, YouTube Shorts ou MP4</span>
+            <span className="text-[10px] text-gray-500">Vercel Web Apps (*.vercel.app), Instagram Reels, TikTok, YouTube ou Sites</span>
           </div>
         </div>
 
         <form onSubmit={handleQuickSaveLink} className="flex-1 flex items-center gap-2">
           <div className="relative flex-1">
             <input
-              type="url"
-              placeholder="Cole o link aqui: https://www.instagram.com/reel/... ou https://www.tiktok.com/@..."
+              type="text"
+              placeholder="Cole o link: https://meuapp.vercel.app, Instagram Reels, TikTok, YouTube..."
               value={quickLink}
               onChange={e => setQuickLink(e.target.value)}
               className="w-full pl-3.5 pr-4 py-2.5 bg-white border border-pink-200 rounded-xl text-xs font-medium text-gray-900 focus:outline-pink-500 shadow-2xs"
@@ -1161,7 +1333,8 @@ export default function MediaLibraryManager({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTemplates.map(tpl => {
             const isDirectVideo = tpl.mediaUrl?.endsWith('.mp4') || tpl.videoUrl?.endsWith('.mp4');
-            const hasVideo = Boolean(tpl.videoUrl || tpl.mediaType === 'video');
+            const isVercel = Boolean((tpl.mediaUrl || tpl.videoUrl || tpl.thumbnailUrl) && /vercel\.app|vercel\.com/i.test(tpl.mediaUrl || tpl.videoUrl || tpl.thumbnailUrl || ''));
+            const hasVideo = Boolean(!isVercel && (tpl.videoUrl || tpl.mediaType === 'video'));
             const coverImage = resolveCoverImage(tpl);
             const isInstagram = Boolean(tpl.videoUrl && /instagram\.com/i.test(tpl.videoUrl));
             const isTikTok = Boolean(tpl.videoUrl && /tiktok\.com/i.test(tpl.videoUrl));
@@ -1182,8 +1355,12 @@ export default function MediaLibraryManager({
                       referrerPolicy="no-referrer"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
+                        if (isVercel) {
+                          target.src = createVercelCoverSvg(tpl.mediaUrl || tpl.videoUrl || 'app.vercel.app', tpl.title);
+                          return;
+                        }
                         // Try fetching via server proxy if remote CDN blocked direct access
-                        if (coverImage.startsWith('http') && !target.src.includes('/api/media/proxy-image')) {
+                        if (coverImage.startsWith('http') && !target.src.includes('/api/media/proxy-image') && !target.src.includes('data:image')) {
                           target.src = `/api/media/proxy-image?url=${encodeURIComponent(coverImage)}`;
                           return;
                         }
@@ -1242,11 +1419,21 @@ export default function MediaLibraryManager({
                       {isUserPost ? '📌 Minha Publicação' : tpl.categoryLabel}
                     </span>
                     <span className={`px-2 py-1 text-white text-[10px] font-bold rounded-lg uppercase flex items-center gap-1 ${
+                      isVercel ? 'bg-black border border-white/30 shadow-xs' :
                       isInstagram ? 'bg-gradient-to-r from-pink-500 to-purple-600' :
                       isTikTok ? 'bg-black border border-gray-700' : 'bg-pink-600'
                     }`}>
-                      {tpl.mediaType === 'video' ? <VideoIcon className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
-                      <span>{isInstagram ? 'Reels' : isTikTok ? 'TikTok' : tpl.mediaType === 'video' ? 'Vídeo' : 'Capa'}</span>
+                      {isVercel ? (
+                        <>
+                          <span className="text-white font-black text-xs leading-none">▲</span>
+                          <span>Vercel</span>
+                        </>
+                      ) : (
+                        <>
+                          {tpl.mediaType === 'video' ? <VideoIcon className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
+                          <span>{isInstagram ? 'Reels' : isTikTok ? 'TikTok' : tpl.mediaType === 'video' ? 'Vídeo' : 'Capa'}</span>
+                        </>
+                      )}
                     </span>
                   </div>
 
@@ -1323,6 +1510,20 @@ export default function MediaLibraryManager({
                         <span>Ver Vídeo {isInstagram ? '(Instagram)' : isTikTok ? '(TikTok)' : ''}</span>
                         {tpl.videoUrl && <ExternalLink className="w-3 h-3 text-gray-400 ml-auto" />}
                       </button>
+                    )}
+
+                    {/* Open Vercel App Button */}
+                    {isVercel && (
+                      <a
+                        href={tpl.mediaUrl || tpl.videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-full py-2.5 px-3 bg-black hover:bg-zinc-800 text-white text-xs font-black rounded-xl border border-zinc-800 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs hover:scale-[1.01]"
+                      >
+                        <span className="text-white font-black text-sm">▲</span>
+                        <span>Abrir App Web (Vercel)</span>
+                        <ExternalLink className="w-3.5 h-3.5 text-zinc-400 ml-auto" />
+                      </a>
                     )}
 
                     <div className="grid grid-cols-2 gap-2">
@@ -1788,8 +1989,32 @@ export default function MediaLibraryManager({
                 const parsed = parseMediaUrl(targetUrl);
                 const isInstagram = /instagram\.com/i.test(targetUrl);
                 const isTikTok = /tiktok\.com/i.test(targetUrl);
+                const isVercel = /vercel\.app|vercel\.com/i.test(targetUrl);
 
-                if (parsed.source === 'youtube' && parsed.embedUrl) {
+                if (isVercel) {
+                  return (
+                    <div className="flex flex-col items-center justify-center p-6 text-center gap-4 w-full h-full bg-gradient-to-b from-zinc-900 to-black">
+                      <div className="p-3.5 bg-black border border-zinc-700 rounded-2xl shadow-xl flex items-center justify-center">
+                        <span className="text-white text-3xl font-black">▲</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="text-sm font-black text-white">Aplicação Web Hospedada na Vercel</span>
+                        <span className="text-xs text-zinc-400 font-mono mt-1 truncate max-w-sm">{targetUrl}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={targetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-5 py-2.5 bg-white hover:bg-zinc-200 text-black font-extrabold text-xs rounded-xl flex items-center gap-2 shadow-lg hover:scale-105 transition-all"
+                        >
+                          <span>Abrir Aplicação Vercel</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  );
+                } else if (parsed.source === 'youtube' && parsed.embedUrl) {
                   return (
                     <iframe
                       src={parsed.embedUrl}
