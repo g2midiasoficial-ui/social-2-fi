@@ -1277,6 +1277,759 @@ app.delete("/api/media-templates/:id", async (req, res) => {
   return res.json({ success: true, id });
 });
 
+// Viral Video Multiplier AI Generation Endpoint
+app.post("/api/ai/multiply-viral-video", async (req, res) => {
+  const { 
+    topic, 
+    videoUrl, 
+    transcriptInput, 
+    niche = "Marketing Digital & Negócios", 
+    targetAudience = "Criadores de conteúdo e empreendedores", 
+    multiplierCount = 5,
+    selectedAngles = [],
+    formatStyle = "reels_quick"
+  } = req.body;
+
+  const count = Math.min(Math.max(Number(multiplierCount) || 5, 1), 20);
+  const baseTopic = (topic || transcriptInput || "Como criar conteúdo viral que converte em clientes").trim();
+
+  const ANGLES_LIBRARY = [
+    {
+      angle: "⚡ Quebra de Mito & Erro Fatal",
+      targetEmotion: "Choque & Alerta",
+      hookPrefix: "Pare de fazer isso se você não quer que seu perfil morra:",
+      visualOp: "[Olhe com expressão de espanto para a câmera, balance a cabeça negativamente e aponte para o texto]",
+      broll: "B-roll em preto e branco com tela de celular travada ou gráfico em queda, mudando para cores vibrantes.",
+      audio: "Beat rápido de suspense e transição de impacto (Whoosh)"
+    },
+    {
+      angle: "🔍 Curiosidade & Revelação Oculta",
+      targetEmotion: "Fascinado & Curioso",
+      hookPrefix: "O que os grandes perfis do seu nicho nunca vão te contar de graça:",
+      visualOp: "[Aproxime o rosto da câmera sussurrando e depois dê um passo para trás com autoridade]",
+      broll: "Tela de bastidores com números ocultos sendo revelados por um efeito de lupa ou blur.",
+      audio: "Trilha Lo-Fi de mistério com estalar de dedos no gancho"
+    },
+    {
+      angle: "🛠️ Passo a Passo Prático (Save-Magnet)",
+      targetEmotion: "Alívio & Clareza",
+      hookPrefix: "Se eu tivesse que começar do zero hoje, só faria esses 3 passos:",
+      visualOp: "[Levante 3 dedos em sequência rápida com som de 'pop' para cada número]",
+      broll: "Demonstração rápida da tela do celular com setas e círculos destacando os botões exatos.",
+      audio: "Batida pop acelerada de produtividade 128 bpm"
+    },
+    {
+      angle: "📖 Storytelling & Caso Real",
+      targetEmotion: "Inspiração & Empatia",
+      hookPrefix: "Em 2024 eu estava prestes a desistir, até que uma mudança boba mudou tudo:",
+      visualOp: "[Comece em um plano aberto caminhando devagar, corte para close frontal]",
+      broll: "Fotos antigas de bastidores, tela com primeiras mensagens ou métricas de crescimento.",
+      audio: "Trilha sonora cinematográfica motivacional que ganha força no clímax"
+    },
+    {
+      angle: "⚠️ Medo de Ficar Para Trás (FOMO)",
+      targetEmotion: "Urgência & Ação Imediata",
+      hookPrefix: "Quem não aplicar isso nos próximos 30 dias vai ficar invisível na internet:",
+      visualOp: "[Aponte diretamente para quem está assistindo com olhar penetrante e sério]",
+      broll: "Cronômetro acelerado em contagem regressiva e capturas de feed moderno.",
+      audio: "Tique-taque de relógio acelerado que vira uma batida eletrônica impactante"
+    },
+    {
+      angle: "💡 Dica Contrarian / Opinião Impopular",
+      targetEmotion: "Provocação & Debate",
+      hookPrefix: "Vou irritar muita gente dizendo isso, mas alguém precisava falar a verdade:",
+      visualOp: "[Beba um gole de água ou café, olhe para a câmera e respire fundo antes de falar]",
+      broll: "Cortes rápidos de comentários com opiniões divididas e gráficos comparativos.",
+      audio: "Bass 808 pesado com pausas dramáticas de silêncio nos pontos-chave"
+    },
+    {
+      angle: "🧪 Desafio Rápido de 7 Dias",
+      targetEmotion: "Competitividade & Empolgação",
+      hookPrefix: "Eu te desafio a fazer isso por 7 dias seguidos e não ter resultado:",
+      visualOp: "[Bata palmas uma vez bem na frente da lente para cortar a cena]",
+      broll: "Checklist animada na tela com itens sendo ticados dia a dia.",
+      audio: "Trilha enérgica de treino ou trending de desafio do TikTok"
+    },
+    {
+      angle: "🔄 Antes vs Depois / Transformação",
+      targetEmotion: "Desejo & Aspiração",
+      hookPrefix: "Olha como era antes de saber disso... e olha o que aconteceu depois:",
+      visualOp: "[Cubra a lente com a palma da mão e abra para uma iluminação impecável]",
+      broll: "Divisão de tela com antes (desorganizado) e depois (alta escala e autoridade).",
+      audio: "Transição épica com drop de graves exatamente no momento do 'depois'"
+    }
+  ];
+
+  const generateFallbackVariations = () => {
+    const variations = [];
+    const bestTimes = ["11:45", "12:30", "17:15", "18:20", "19:00", "20:15", "21:00"];
+
+    for (let i = 0; i < count; i++) {
+      const template = ANGLES_LIBRARY[i % ANGLES_LIBRARY.length];
+      const time = bestTimes[i % bestTimes.length];
+      const varId = `var-${Date.now()}-${i + 1}`;
+      const varTitle = `Variação #${i + 1}: ${template.angle.replace(/[^\w\sÀ-ÿ]/g, '').trim()} - ${baseTopic.slice(0, 30)}...`;
+
+      const hook = `${template.hookPrefix} ${baseTopic.toLowerCase()}!`;
+      const fullScript = `🎥 [0-3s - GANCHO VISUAL & AUDITIVO]\n${template.visualOp}\n"${hook}"\n\n⚡ [3-15s - RETENÇÃO & QUEBRA DE PADRÃO]\n"A verdade é que a maioria das pessoas no nicho de ${niche} gasta horas produzindo conteúdo sem estratégia, esperando um milagre do algoritmo. Só que o jogo mudou completamente."\n\n💡 [15-40s - ENTREGA DE VALOR CENTRAL]\n"Quando você foca em ${baseTopic.toLowerCase()}, o segredo está em três pilares fundamentais:\n1. Despertar o interesse em menos de 3 segundos com um gancho cirúrgico.\n2. Entregar uma vitória rápida que o seguidor possa testar agora mesmo.\n3. Criar uma conversa real em vez de apenas falar sozinho."\n\n🚀 [40-50s - CALL TO ACTION DE ALTA CONVERSÃO]\n"Se você quer ter acesso ao mapa completo passo a passo, comenta 'VIRAL' aqui embaixo que eu te mando no direct!"`;
+
+      const teleprompter = `${hook}\n\nA verdade é que a maioria das pessoas no nicho de ${niche} gasta horas sem estratégia.\n\nQuando você foca nisso, existem 3 pilares:\n\nPrimeiro: gancho forte em 3 segundos.\n\nSegundo: vitória rápida que funciona na hora.\n\nTerceiro: conversa real nos comentários.\n\nComenta VIRAL aqui embaixo que te envio o mapa completo no direct!`;
+
+      variations.push({
+        id: varId,
+        title: varTitle,
+        angle: template.angle,
+        targetEmotion: template.targetEmotion,
+        hook3s: hook,
+        visualOpening: template.visualOp,
+        fullScript,
+        teleprompterScript: teleprompter,
+        onScreenCaptions: [
+          `🚨 ${template.angle}`,
+          `👉 ${baseTopic.slice(0, 25)}...`,
+          "⚡ Teste Isso Hoje",
+          "💬 Comente 'VIRAL'"
+        ],
+        brollSuggestions: template.broll,
+        socialCaption: `🚨 ${hook}\n\nSe você produz conteúdo sobre ${niche}, precisa entender que o algoritmo recompensa retenção e conversa real.\n\n💡 Salve este post para rever na hora de gravar seu próximo vídeo!\n\n👇 Comente 'VIRAL' se você quer o modelo pronto no seu direct.`,
+        hashtags: [
+          niche.toLowerCase().replace(/[^\w]/g, ''),
+          "reelsvirais",
+          "crescernoinstagram",
+          "tiktokbrasil",
+          "criadoresdeconteudo",
+          "marketingdigital",
+          "estrategiadeconteudo"
+        ],
+        estimatedDuration: `${25 + (i * 3) % 25}s`,
+        bestTimeToPost: `${time} (Melhor Horário)`,
+        recommendedAudioType: template.audio,
+        status: 'script_ready' as const,
+        coverUrl: videoUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"
+      });
+    }
+
+    return variations;
+  };
+
+  const ai = getGeminiClient();
+  if (!ai) {
+    const fallbackVariations = generateFallbackVariations();
+    return res.json({
+      topic: baseTopic,
+      niche,
+      multiplierCount: count,
+      variations: fallbackVariations,
+      isMock: true
+    });
+  }
+
+  try {
+    const prompt = `
+Você é o maior Diretor Criativo e Especialista em Engenharia de Multiplicação de Vídeos Virais (Reels, TikTok, YouTube Shorts) do mundo.
+Sua tarefa é pegar uma ideia/tópico central ou referência de vídeo e MULTIPLICAR em exatamente ${count} variações de roteiros virais completos, distintos e de altíssima retenção.
+
+DADOS DE ENTRADA:
+- Tópico ou Roteiro Base: "${baseTopic}"
+- Nicho: "${niche}"
+- Público-Alvo: "${targetAudience}"
+- Quantidade exata de variações a gerar: ${count}
+- Ângulos psicológicos a explorar: Quebra de Mito, Revelação Oculta, Passo a Passo Salva-Vidas, Storytelling Emocional, Alerta de Urgência (FOMO), Opinião Impopular, Desafio 7 Dias, Antes e Depois.
+
+REQUISITOS PARA CADA UMA DAS ${count} VARIAÇÕES:
+1. Deve atacar o tema de um ângulo psicológico e emocional COMPLETAMENTE diferente das outras.
+2. hook3s: Gancho verbal irresistível dos primeiros 3 segundos.
+3. visualOpening: Direção de cena e linguagem corporal nos primeiros 3s (entre colchetes).
+4. fullScript: Roteiro completo com marcações claras de cena ([0-3s GANCHO], [3-15s RETENÇÃO], [15-40s CONTEÚDO], [40-50s CTA]).
+5. teleprompterScript: Texto limpo, sem marcações técnicas, pontuado para leitura corrida no teleprompter.
+6. onScreenCaptions: Array de 3 a 5 frases de texto dinâmico para colocar na tela do vídeo.
+7. brollSuggestions: Sugestão visual de B-Roll / cenas de apoio.
+8. socialCaption: Legenda completa pronta para publicação no feed/reels com emojis, espaçamento e CTA.
+9. hashtags: 6 a 10 hashtags sem o símbolo #.
+10. estimatedDuration: Duração estimada (ex: "32s", "45s").
+11. bestTimeToPost: Horário estratégico sugerido (ex: "18:30").
+12. recommendedAudioType: Estilo de música ou áudio em alta recomendado.
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.8-flash",
+      contents: [prompt],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            topic: { type: Type.STRING },
+            niche: { type: Type.STRING },
+            variations: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  title: { type: Type.STRING },
+                  angle: { type: Type.STRING },
+                  targetEmotion: { type: Type.STRING },
+                  hook3s: { type: Type.STRING },
+                  visualOpening: { type: Type.STRING },
+                  fullScript: { type: Type.STRING },
+                  teleprompterScript: { type: Type.STRING },
+                  onScreenCaptions: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  brollSuggestions: { type: Type.STRING },
+                  socialCaption: { type: Type.STRING },
+                  hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  estimatedDuration: { type: Type.STRING },
+                  bestTimeToPost: { type: Type.STRING },
+                  recommendedAudioType: { type: Type.STRING }
+                },
+                required: [
+                  "id", "title", "angle", "targetEmotion", "hook3s", 
+                  "visualOpening", "fullScript", "teleprompterScript", 
+                  "onScreenCaptions", "brollSuggestions", "socialCaption", 
+                  "hashtags", "estimatedDuration", "bestTimeToPost", "recommendedAudioType"
+                ]
+              }
+            }
+          },
+          required: ["topic", "niche", "variations"]
+        }
+      }
+    });
+
+    const parsed = JSON.parse(response.text || "{}");
+    const rawVariations = Array.isArray(parsed.variations) ? parsed.variations : [];
+    
+    const finalizedVariations = rawVariations.map((v: any, index: number) => ({
+      ...v,
+      id: v.id || `var-${Date.now()}-${index + 1}`,
+      status: 'script_ready' as const,
+      coverUrl: videoUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"
+    }));
+
+    return res.json({
+      topic: parsed.topic || baseTopic,
+      niche: parsed.niche || niche,
+      multiplierCount: finalizedVariations.length,
+      variations: finalizedVariations,
+      isMock: false
+    });
+  } catch (error: any) {
+    console.error("Erro na geração de multiplicação com Gemini:", error);
+    const fallbackVariations = generateFallbackVariations();
+    return res.json({
+      topic: baseTopic,
+      niche,
+      multiplierCount: count,
+      variations: fallbackVariations,
+      isMock: true,
+      errorNotice: error.message
+    });
+  }
+});
+
+// Viral Multiplier Projects Persistence Endpoints (Firestore + Local Fallback)
+app.get("/api/viral-multiplier-projects", async (req, res) => {
+  const localProjects = readLocalFile(".local_multiplier_projects.json", []);
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.json(localProjects);
+  }
+
+  try {
+    const col = collection(db, "viral_multiplier_projects");
+    const snapshot = await withTimeout(getDocs(col), 2500);
+    const remoteProjects = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    writeLocalFile(".local_multiplier_projects.json", remoteProjects);
+    return res.json(remoteProjects);
+  } catch (err: any) {
+    console.warn("Firestore multiplier projects load error, fallback to local:", err.message);
+    await handleFirebaseError(db, err);
+    return res.json(localProjects);
+  }
+});
+
+app.post("/api/viral-multiplier-projects", async (req, res) => {
+  const project = req.body;
+  if (!project || !project.id) {
+    return res.status(400).json({ error: "Dados inválidos de projeto de multiplicação." });
+  }
+
+  const localProjects = readLocalFile(".local_multiplier_projects.json", []);
+  const idx = localProjects.findIndex((p: any) => p.id === project.id);
+  if (idx >= 0) {
+    localProjects[idx] = project;
+  } else {
+    localProjects.unshift(project);
+  }
+  writeLocalFile(".local_multiplier_projects.json", localProjects);
+
+  try {
+    const db = getFirestoreDb();
+    if (db) {
+      const ref = doc(db, "viral_multiplier_projects", project.id);
+      await withTimeout(setDoc(ref, {
+        ...project,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }), 2500);
+    }
+  } catch (err: any) {
+    console.warn("Firestore save multiplier project fallback:", err.message);
+  }
+
+  return res.json({ success: true, project });
+});
+
+app.delete("/api/viral-multiplier-projects/:id", async (req, res) => {
+  const { id } = req.params;
+  const localProjects = readLocalFile(".local_multiplier_projects.json", []);
+  const updated = localProjects.filter((p: any) => p.id !== id);
+  writeLocalFile(".local_multiplier_projects.json", updated);
+
+  try {
+    const db = getFirestoreDb();
+    if (db) {
+      const ref = doc(db, "viral_multiplier_projects", id);
+      await withTimeout(deleteDoc(ref), 2500);
+    }
+  } catch (err: any) {
+    console.warn("Firestore delete multiplier project fallback:", err.message);
+  }
+
+  return res.json({ success: true, id });
+});
+
+// ==========================================
+// FÁBRICA MODULAR DE 150 VÍDEOS (10x5x3)
+// 10 Ganchos x 5 Corpos x 3 CTAs = 150 Vídeos
+// ==========================================
+
+app.post("/api/ai/generate-150-modular-matrix", async (req, res) => {
+  const {
+    topic = "Como vender todos os dias no direct sem gastar em anúncios",
+    niche = "Marketing Digital & Negócios",
+    audience = "Empreendedores, autônomos e criadores de conteúdo",
+    tone = "Direto, magnético e com alto senso de oportunidade"
+  } = req.body || {};
+
+  // Fallback rico e modular para 10 ganchos, 5 corpos e 3 CTAs
+  const generateFallbackModularMatrix = () => {
+    const hooks = [
+      {
+        id: "hook-1",
+        type: "hook" as const,
+        index: 1,
+        title: "⚡ Quebra de Erro Comum",
+        script: `Se você ainda está fazendo isso em ${niche}, pare agora antes de queimar mais tempo e dinheiro!`,
+        triggerOrValue: "Alerta Imediato / Erro Fatal",
+        durationSec: 4
+      },
+      {
+        id: "hook-2",
+        type: "hook" as const,
+        index: 2,
+        title: "🔍 Revelação de Segredo",
+        script: `Ninguém no seu nicho tem coragem de falar isso em voz alta, mas eu vou te provar em 30 segundos.`,
+        triggerOrValue: "Curiosidade Extrema",
+        durationSec: 4
+      },
+      {
+        id: "hook-3",
+        type: "hook" as const,
+        index: 3,
+        title: "💡 O Hack que os Top Players Usam",
+        script: `Essa é a exata estratégia secreta que os maiores perfis de ${niche} usam todos os dias para disparar resultados:`,
+        triggerOrValue: "Hack de Alta Performance",
+        durationSec: 4
+      },
+      {
+        id: "hook-4",
+        type: "hook" as const,
+        index: 4,
+        title: "⚠️ Medo de Ficar Para Trás",
+        script: `Se você ignorar essa mudança no algoritmo nos próximos 7 dias, vai ver seu alcance despencar.`,
+        triggerOrValue: "FOMO / Senso de Urgência",
+        durationSec: 4
+      },
+      {
+        id: "hook-5",
+        type: "hook" as const,
+        index: 5,
+        title: "🎯 Pergunta Provocativa",
+        script: `Você prefere continuar ralando 10 horas por dia no escuro, ou aplicar esse método simples e previsível?`,
+        triggerOrValue: "Dilema & Contraste",
+        durationSec: 4
+      },
+      {
+        id: "hook-6",
+        type: "hook" as const,
+        index: 6,
+        title: "🛑 Pare e Repare",
+        script: `Esquece tudo o que te ensinaram sobre ${topic.slice(0, 30)}. A verdade é muito mais simples:`,
+        triggerOrValue: "Desconstrução / Quebra de Crença",
+        durationSec: 4
+      },
+      {
+        id: "hook-7",
+        type: "hook" as const,
+        index: 7,
+        title: "🏆 O Atalho de Ouro",
+        script: `Eu testei dezenas de caminhos pra você não errar, e o atalho mais rápido pra dominar isso é esse aqui:`,
+        triggerOrValue: "Atalho Validado",
+        durationSec: 4
+      },
+      {
+        id: "hook-8",
+        type: "hook" as const,
+        index: 8,
+        title: "🔄 Antes vs Depois",
+        script: `Eu saí do zero absoluto para resultados inacreditáveis assim que eu comecei a fazer exatamente isso:`,
+        triggerOrValue: "Transformação Pessoal",
+        durationSec: 4
+      },
+      {
+        id: "hook-9",
+        type: "hook" as const,
+        index: 9,
+        title: "🤫 Bastidores Ocultos",
+        script: `Vem comigo olhar a tela do meu celular, porque o que eu vou te mostrar agora quase ninguém ensina de graça:`,
+        triggerOrValue: "Visão dos Bastidores",
+        durationSec: 4
+      },
+      {
+        id: "hook-10",
+        type: "hook" as const,
+        index: 10,
+        title: "🔥 Opinião Impopular",
+        script: `Vão me cancelar por dizer isso, mas tentar ter sucesso sem esse pilar básico é pura ilusão.`,
+        triggerOrValue: "Contrarian / Choque",
+        durationSec: 4
+      }
+    ];
+
+    const bodies = [
+      {
+        id: "body-1",
+        type: "body" as const,
+        index: 1,
+        title: "🛠️ O Framework em 3 Passos",
+        script: `Primeiro: identifique o gargalo número um da sua rotina. Segundo: crie uma mensagem de impacto direto focada na dor imediata da pessoa. Terceiro: responda nos primeiros 5 minutos com uma pergunta aberta. É essa velocidade e clareza que converte curiosos em clientes fiéis.`,
+        triggerOrValue: "Passo a Passo Prático (1, 2, 3)",
+        durationSec: 18
+      },
+      {
+        id: "body-2",
+        type: "body" as const,
+        index: 2,
+        title: "🧠 A Virada de Chave Psicológica",
+        script: `O segredo não é forçar a barra nem postar 5 vezes por dia. As pessoas não compram o que você faz, elas compram a clareza e a segurança de que o problema delas será resolvido. Quando você ajusta a sua narrativa pra focar 80% na dor do cliente e 20% na solução, o jogo vira instantaneamente.`,
+        triggerOrValue: "Princípio Psicológico Profundo",
+        durationSec: 19
+      },
+      {
+        id: "body-3",
+        type: "body" as const,
+        index: 3,
+        title: "📱 O Roteiro de Conversão em Ação",
+        script: `Faça o seguinte teste hoje mesmo: pegue uma dúvida que seus seguidores sempre repetem, grave um vídeo de 30 segundos respondendo direto ao ponto e termine chamando para continuar a conversa no privado. Isso cria conexão humana e gera pedidos espontâneos de orçamento.`,
+        triggerOrValue: "Ação Rápida de Hoje Mesmo",
+        durationSec: 17
+      },
+      {
+        id: "body-4",
+        type: "body" as const,
+        index: 4,
+        title: "🚫 O Erro Oculto que Bloqueia Tudo",
+        script: `A maioria das pessoas comete o erro de falar de recursos técnicos em vez de benefícios reais. Ninguém quer saber quanto tempo você demorou pra fazer, as pessoas querem saber quanto tempo ou dinheiro elas vão economizar com isso. Mude essa simples frase e observe a reação imediata.`,
+        triggerOrValue: "Diagnóstico e Correção de Rota",
+        durationSec: 18
+      },
+      {
+        id: "body-5",
+        type: "body" as const,
+        index: 5,
+        title: "⚡ A Regra de Retenção dos 80/20",
+        script: `Foque 80% da sua energia nos primeiros 3 segundos do seu conteúdo e nos primeiros 10 minutos de interação com quem comenta. É esse pico de engajamento inicial que avisa o algoritmo que o seu conteúdo merece ser entregue para milhares de pessoas que nem te seguem ainda.`,
+        triggerOrValue: "Princípio 80/20 de Retenção",
+        durationSec: 17
+      }
+    ];
+
+    const ctas = [
+      {
+        id: "cta-1",
+        type: "cta" as const,
+        index: 1,
+        title: "💬 Comente a Palavra-Chave",
+        script: `Comenta a palavra 'VIRAL' aqui embaixo que eu vou te mandar o template completo e o passo a passo direto no seu direct!`,
+        triggerOrValue: "Conversão no Direct (ManyChat / Robô)",
+        durationSec: 5
+      },
+      {
+        id: "cta-2",
+        type: "cta" as const,
+        index: 2,
+        title: "💾 Salve para Rever na Hora de Gravar",
+        script: `Já clica na bandeirinha aqui embaixo e salva esse vídeo pra consultar o roteiro exato quando for gravar hoje!`,
+        triggerOrValue: "Salva-Magnet (Pontuação de Algoritmo)",
+        durationSec: 4
+      },
+      {
+        id: "cta-3",
+        type: "cta" as const,
+        index: 3,
+        title: "🔗 Toque no Link da Bio",
+        script: `Se você quer ter acesso ao material completo e avançar 10x mais rápido, toca no link da minha bio agora mesmo.`,
+        triggerOrValue: "Tráfego Direto para a Bio / WhatsApp",
+        durationSec: 5
+      }
+    ];
+
+    return { hooks, bodies, ctas };
+  };
+
+  const ai = getGeminiClient();
+  if (!ai) {
+    const matrix = generateFallbackModularMatrix();
+    return res.json({
+      topic,
+      niche,
+      audience,
+      totalCombinations: 150,
+      ...matrix,
+      isMock: true
+    });
+  }
+
+  try {
+    const prompt = `
+Você é o maior Diretor Criativo e Engenheiro de Conteúdo Modular para TikTok, Reels e Shorts do mundo.
+Sua missão é criar uma MATRIZ MODULAR VIRAL DE ALTA CONVERSÃO:
+- Exatamente 10 Ganchos Iniciais (Hooks) de 3 a 5 segundos.
+- Exatamente 5 Corpos Centrais (Bodies) de 15 a 25 segundos.
+- Exatamente 3 Chamadas para Ação (CTAs) de 4 a 5 segundos.
+
+O SEGREDO DESTA MATRIZ (REGRA DE OURO):
+Qualquer um dos 10 Ganchos DEVE se conectar de maneira 100% natural e sem emendas com qualquer um dos 5 Corpos, e qualquer um dos 5 Corpos DEVE fluir com perfeição para qualquer um dos 3 CTAs!
+Essa combinatória perfeita (10 x 5 x 3 = 150 vídeos) permite que o criador grave apenas 18 pedacinhos em 20 minutos no celular e obtenha 150 vídeos prontos para postar durante meses no TikTok e Reels!
+
+DADOS DO PROJETO:
+- Tema Central: "${topic}"
+- Nicho: "${niche}"
+- Público-Alvo: "${audience}"
+- Tom de Voz: "${tone}"
+
+REQUISITOS ESPECÍFICOS:
+1. GANCHOS (10 no total):
+   - Cada um deve durar de 3 a 5 segundos.
+   - Variar os gatilhos: Erro grave, Curiosidade, Hack dos Top Players, Medo de Ficar Pra Trás, Pergunta Provocativa, Desconstrução, Atalho de Ouro, Transformação, Bastidores, Opinião Impopular.
+   - Terminar com uma ponte natural (ex: "...e é isso aqui:", "...o motivo é simples:", "...presta atenção nisso:", "...olha como funciona:").
+
+2. CORPOS (5 no total):
+   - Cada um deve durar de 15 a 25 segundos.
+   - Devem entregar alto valor didático e acionável imediatamente.
+   - Um em formato de 3 passos, outro em virada de chave mental, outro em teste rápido de hoje, outro em correção de erro, outro em regra de ouro.
+   - Devem começar diretamente com a entrega da solução sem saudações redundantes ("Olá pessoal").
+
+3. CTAs (3 no total):
+   - Cada um de 3 a 5 segundos.
+   - CTA 1: Comentar palavra-chave para receber no direct.
+   - CTA 2: Salvar o vídeo para não perder e rever na hora de gravar.
+   - CTA 3: Acessar link na bio ou compartilhar com um amigo.
+`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.7-flash",
+      contents: [prompt],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            hooks: {
+              type: Type.ARRAY,
+              description: "Exatamente 10 ganchos modulares",
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  index: { type: Type.INTEGER },
+                  title: { type: Type.STRING },
+                  script: { type: Type.STRING },
+                  triggerOrValue: { type: Type.STRING },
+                  durationSec: { type: Type.INTEGER }
+                },
+                required: ["index", "title", "script", "triggerOrValue", "durationSec"]
+              }
+            },
+            bodies: {
+              type: Type.ARRAY,
+              description: "Exatamente 5 corpos modulares",
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  index: { type: Type.INTEGER },
+                  title: { type: Type.STRING },
+                  script: { type: Type.STRING },
+                  triggerOrValue: { type: Type.STRING },
+                  durationSec: { type: Type.INTEGER }
+                },
+                required: ["index", "title", "script", "triggerOrValue", "durationSec"]
+              }
+            },
+            ctas: {
+              type: Type.ARRAY,
+              description: "Exatamente 3 CTAs modulares",
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  index: { type: Type.INTEGER },
+                  title: { type: Type.STRING },
+                  script: { type: Type.STRING },
+                  triggerOrValue: { type: Type.STRING },
+                  durationSec: { type: Type.INTEGER }
+                },
+                required: ["index", "title", "script", "triggerOrValue", "durationSec"]
+              }
+            }
+          },
+          required: ["hooks", "bodies", "ctas"]
+        }
+      }
+    });
+
+    const parsed = JSON.parse(response.text || "{}");
+    const hooks = (parsed.hooks || []).map((h: any, i: number) => ({
+      id: `hook-${i + 1}`,
+      type: "hook" as const,
+      index: i + 1,
+      title: h.title || `Gancho #${i + 1}`,
+      script: h.script || "",
+      triggerOrValue: h.triggerOrValue || "Gatilho de Retenção",
+      durationSec: h.durationSec || 4
+    }));
+
+    const bodies = (parsed.bodies || []).map((b: any, i: number) => ({
+      id: `body-${i + 1}`,
+      type: "body" as const,
+      index: i + 1,
+      title: b.title || `Corpo #${i + 1}`,
+      script: b.script || "",
+      triggerOrValue: b.triggerOrValue || "Entrega de Valor",
+      durationSec: b.durationSec || 18
+    }));
+
+    const ctas = (parsed.ctas || []).map((c: any, i: number) => ({
+      id: `cta-${i + 1}`,
+      type: "cta" as const,
+      index: i + 1,
+      title: c.title || `CTA #${i + 1}`,
+      script: c.script || "",
+      triggerOrValue: c.triggerOrValue || "Chamada para Ação",
+      durationSec: c.durationSec || 5
+    }));
+
+    return res.json({
+      topic,
+      niche,
+      audience,
+      totalCombinations: (hooks.length || 10) * (bodies.length || 5) * (ctas.length || 3),
+      hooks: hooks.length ? hooks : generateFallbackModularMatrix().hooks,
+      bodies: bodies.length ? bodies : generateFallbackModularMatrix().bodies,
+      ctas: ctas.length ? ctas : generateFallbackModularMatrix().ctas,
+      isMock: false
+    });
+
+  } catch (err: any) {
+    console.warn("Erro ao gerar matriz modular com Gemini, usando fallback:", err.message);
+    const matrix = generateFallbackModularMatrix();
+    return res.json({
+      topic,
+      niche,
+      audience,
+      totalCombinations: 150,
+      ...matrix,
+      isMock: true,
+      errorNotice: err.message
+    });
+  }
+});
+
+// Modular Factory Projects Persistence Endpoints (Firestore + Local)
+app.get("/api/modular-factory-projects", async (req, res) => {
+  const localProjects = readLocalFile(".local_modular_factory_projects.json", []);
+  const db = getFirestoreDb();
+  if (!db) {
+    return res.json(localProjects);
+  }
+
+  try {
+    const col = collection(db, "modular_factory_projects");
+    const snapshot = await withTimeout(getDocs(col), 2500);
+    const remoteProjects = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    writeLocalFile(".local_modular_factory_projects.json", remoteProjects);
+    return res.json(remoteProjects);
+  } catch (err: any) {
+    console.warn("Firestore modular factory projects error, fallback to local:", err.message);
+    await handleFirebaseError(db, err);
+    return res.json(localProjects);
+  }
+});
+
+app.post("/api/modular-factory-projects", async (req, res) => {
+  const project = req.body;
+  if (!project || !project.id) {
+    return res.status(400).json({ error: "Dados inválidos de projeto modular." });
+  }
+
+  const localProjects = readLocalFile(".local_modular_factory_projects.json", []);
+  const idx = localProjects.findIndex((p: any) => p.id === project.id);
+  if (idx >= 0) {
+    localProjects[idx] = project;
+  } else {
+    localProjects.unshift(project);
+  }
+  writeLocalFile(".local_modular_factory_projects.json", localProjects);
+
+  try {
+    const db = getFirestoreDb();
+    if (db) {
+      const ref = doc(db, "modular_factory_projects", project.id);
+      await withTimeout(setDoc(ref, {
+        ...project,
+        updatedAt: new Date().toISOString()
+      }, { merge: true }), 2500);
+    }
+  } catch (err: any) {
+    console.warn("Firestore save modular project fallback:", err.message);
+  }
+
+  return res.json({ success: true, project });
+});
+
+app.delete("/api/modular-factory-projects/:id", async (req, res) => {
+  const { id } = req.params;
+  const localProjects = readLocalFile(".local_modular_factory_projects.json", []);
+  const updated = localProjects.filter((p: any) => p.id !== id);
+  writeLocalFile(".local_modular_factory_projects.json", updated);
+
+  try {
+    const db = getFirestoreDb();
+    if (db) {
+      const ref = doc(db, "modular_factory_projects", id);
+      await withTimeout(deleteDoc(ref), 2500);
+    }
+  } catch (err: any) {
+    console.warn("Firestore delete modular project fallback:", err.message);
+  }
+
+  return res.json({ success: true, id });
+});
+
 // Start integration server
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

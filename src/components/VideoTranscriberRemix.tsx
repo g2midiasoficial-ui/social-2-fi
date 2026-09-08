@@ -36,6 +36,7 @@ interface VideoTranscriberRemixProps {
     mediaType?: 'image' | 'video';
     platforms: ('instagram' | 'tiktok' | 'facebook' | 'youtube')[];
   }) => void;
+  onOpenMultiplier?: (topicOrScript: string) => void;
   showNotification: (msg: string, type: 'success' | 'info') => void;
 }
 
@@ -92,6 +93,7 @@ const TONES = [
 
 export default function VideoTranscriberRemix({
   onSchedulePost,
+  onOpenMultiplier,
   showNotification
 }: VideoTranscriberRemixProps) {
   // Input mode
@@ -697,22 +699,36 @@ export default function VideoTranscriberRemix({
                   </p>
                 </div>
 
-                {/* Primary Fast Action Button: Schedule Post */}
-                <button
-                  onClick={() => {
-                    onSchedulePost({
-                      caption: result.socialCaption + "\n\n" + result.hashtags.map(h => `#${h}`).join(" "),
-                      mediaUrl: videoPreviewUrl || undefined,
-                      mediaType: 'video',
-                      platforms: ['instagram', 'tiktok']
-                    });
-                    showNotification("Roteiro e legenda carregados no Criador de Posts!", "success");
-                  }}
-                  className="px-4 py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Agendar Publicação</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {onOpenMultiplier && (
+                    <button
+                      onClick={() => {
+                        onOpenMultiplier(result.transcript || result.title);
+                      }}
+                      className="px-3.5 py-2.5 bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-700 hover:to-pink-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                    >
+                      <Zap className="w-3.5 h-3.5 fill-white" />
+                      <span>Multiplicar em 10x</span>
+                    </button>
+                  )}
+
+                  {/* Primary Fast Action Button: Schedule Post */}
+                  <button
+                    onClick={() => {
+                      onSchedulePost({
+                        caption: result.socialCaption + "\n\n" + result.hashtags.map(h => `#${h}`).join(" "),
+                        mediaUrl: videoPreviewUrl || undefined,
+                        mediaType: 'video',
+                        platforms: ['instagram', 'tiktok']
+                      });
+                      showNotification("Roteiro e legenda carregados no Criador de Posts!", "success");
+                    }}
+                    className="px-4 py-2.5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Agendar Publicação</span>
+                  </button>
+                </div>
               </div>
 
               {/* Subtabs for Results */}

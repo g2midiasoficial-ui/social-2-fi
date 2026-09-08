@@ -12,6 +12,8 @@ import AutoListsManager from "./components/AutoListsManager";
 import MediaLibraryManager from "./components/MediaLibraryManager";
 import ProfileSettingsModal from "./components/ProfileSettingsModal";
 import VideoTranscriberRemix from "./components/VideoTranscriberRemix";
+import ViralVideoMultiplier from "./components/ViralVideoMultiplier";
+import ModularVideoFactory from "./components/ModularVideoFactory";
 import SalesPage from "./components/SalesPage";
 import LoginScreen from "./components/LoginScreen";
 import { 
@@ -55,6 +57,7 @@ export default function App() {
   const [editingPost, setEditingPost] = useState<SocialPost | null>(null);
   const [defaultTime, setDefaultTime] = useState("10:00");
   const [defaultDate, setDefaultDate] = useState("");
+  const [multiplierInitialTopic, setMultiplierInitialTopic] = useState("");
 
   // Feedback notifications
   const [notification, setNotification] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
@@ -287,6 +290,25 @@ export default function App() {
         });
       } catch (err) {
         console.warn("Failed to update post status in Firebase:", err);
+      }
+    }
+  };
+
+  // Batch schedule multiple posts from the Viral Video Multiplier
+  const handleBatchSchedulePosts = async (newBatchPosts: SocialPost[]) => {
+    const updated = [...newBatchPosts, ...posts];
+    savePosts(updated);
+    showNotification(`✓ ${newBatchPosts.length} posts agendados com sucesso no Calendário!`, "success");
+
+    for (const p of newBatchPosts) {
+      try {
+        await fetch("/api/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(p)
+        });
+      } catch (err) {
+        console.warn("Failed to batch save post to Firebase:", err);
       }
     }
   };
@@ -572,6 +594,11 @@ export default function App() {
 
             {activeSubTabCalendar === 'transcritor' && (
               <VideoTranscriberRemix
+                onOpenMultiplier={(topicOrScript) => {
+                  setMultiplierInitialTopic(topicOrScript);
+                  setActiveSubTabCalendar('multiplicador');
+                  showNotification("Enviado para o Multiplicador de Vídeos Virais!", "success");
+                }}
                 onSchedulePost={(postData) => {
                   setEditingPost({
                     id: `post-${Date.now()}`,
@@ -590,6 +617,86 @@ export default function App() {
                 showNotification={(text, type) => {
                   setNotification({ text, type });
                   setTimeout(() => setNotification(null), 3000);
+                }}
+              />
+            )}
+
+            {activeSubTabCalendar === 'multiplicador' && (
+              <ViralVideoMultiplier
+                initialTopic={multiplierInitialTopic}
+                onSchedulePost={(postData) => {
+                  setEditingPost({
+                    id: `post-${Date.now()}`,
+                    caption: postData.caption || '',
+                    platforms: postData.platforms || ['instagram', 'tiktok'],
+                    destinations: ['feed', 'story'],
+                    date: postData.date || getWeekdayDate(1),
+                    time: postData.time || '19:00',
+                    mediaUrl: postData.mediaUrl,
+                    mediaType: postData.mediaType || 'video',
+                    status: 'draft',
+                    bestTimeScore: 98
+                  });
+                  setIsModalOpen(true);
+                }}
+                onBatchSchedulePosts={handleBatchSchedulePosts}
+                onSendToTrello={(cardData) => {
+                  const newPost: SocialPost = {
+                    id: `post-trello-${Date.now()}`,
+                    caption: `${cardData.title}\n\n${cardData.caption}`,
+                    platforms: ['instagram', 'tiktok'],
+                    destinations: ['feed'],
+                    date: getWeekdayDate(2),
+                    time: '18:00',
+                    status: 'draft'
+                  };
+                  savePosts([newPost, ...posts]);
+                  setActiveSubTabCalendar('trello');
+                  showNotification(`Card "${cardData.title}" adicionado ao Quadro Trello!`, "success");
+                }}
+                showNotification={(text, type) => {
+                  setNotification({ text, type });
+                  setTimeout(() => setNotification(null), 3500);
+                }}
+              />
+            )}
+
+            {activeSubTabCalendar === 'fabrica150' && (
+              <ModularVideoFactory
+                onSchedulePost={(postData) => {
+                  setEditingPost({
+                    id: `post-${Date.now()}`,
+                    caption: postData.caption || '',
+                    platforms: postData.platforms || ['instagram', 'tiktok'],
+                    destinations: ['feed', 'story'],
+                    date: postData.date || getWeekdayDate(1),
+                    time: postData.time || '19:00',
+                    mediaUrl: postData.mediaUrl,
+                    mediaType: postData.mediaType || 'video',
+                    status: 'draft',
+                    bestTimeScore: 99
+                  });
+                  setIsModalOpen(true);
+                }}
+                onBatchSchedulePosts={handleBatchSchedulePosts}
+                onSendToTrello={(cardData) => {
+                  const newPost: SocialPost = {
+                    id: `post-trello-${Date.now()}`,
+                    caption: `${cardData.title}\n\n${cardData.caption}`,
+                    platforms: ['instagram', 'tiktok'],
+                    destinations: ['feed'],
+                    date: getWeekdayDate(2),
+                    time: '18:00',
+                    status: 'draft'
+                  };
+                  savePosts([newPost, ...posts]);
+                  setActiveSubTabCalendar('trello');
+                  showNotification(`Card "${cardData.title}" adicionado ao Quadro Trello!`, "success");
+                }}
+                onSwitchToCalendar={() => setActiveSubTabCalendar('calendario')}
+                showNotification={(text, type) => {
+                  setNotification({ text, type });
+                  setTimeout(() => setNotification(null), 3500);
                 }}
               />
             )}

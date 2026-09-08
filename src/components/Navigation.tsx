@@ -24,7 +24,10 @@ import {
   Cable,
   Database,
   Globe,
-  Video
+  Video,
+  Zap,
+  Film,
+  Shuffle
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -301,6 +304,44 @@ export default function Navigation({
               }`}
             >
               Autolistas
+            </button>
+            <button
+              id="sub-tab-multiplicador"
+              onClick={() => setActiveSubTabCalendar('multiplicador')}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all cursor-pointer ${
+                activeSubTabCalendar === 'multiplicador'
+                  ? 'bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white shadow-md font-black'
+                  : 'text-purple-700 hover:bg-purple-50 font-bold border border-purple-200/80 bg-purple-50/60'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>Multiplicador de Vídeos Virais</span>
+              <span className={`px-1.5 py-0.2 text-[9px] rounded-full font-black uppercase tracking-wider ${
+                activeSubTabCalendar === 'multiplicador'
+                  ? 'bg-white text-purple-900'
+                  : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+              }`}>
+                10x IA
+              </span>
+            </button>
+            <button
+              id="sub-tab-fabrica150"
+              onClick={() => setActiveSubTabCalendar('fabrica150')}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg transition-all cursor-pointer ${
+                activeSubTabCalendar === 'fabrica150'
+                  ? 'bg-gradient-to-r from-rose-600 via-pink-600 to-amber-500 text-white shadow-md font-black'
+                  : 'text-rose-700 hover:bg-rose-50 font-bold border border-rose-200/80 bg-rose-50/60'
+              }`}
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              <span>Fábrica 150 Vídeos</span>
+              <span className={`px-1.5 py-0.2 text-[9px] rounded-full font-black uppercase tracking-wider ${
+                activeSubTabCalendar === 'fabrica150'
+                  ? 'bg-white text-rose-900'
+                  : 'bg-gradient-to-r from-rose-600 to-amber-500 text-white'
+              }`}>
+                10x5x3
+              </span>
             </button>
             <button
               id="sub-tab-transcritor"
